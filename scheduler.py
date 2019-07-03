@@ -5,7 +5,7 @@ Retrieve and format SWRCGSR schedule and enrollment data from Banner systems,
 using Selenium and csv.
 """
 
-## Imports
+# Imports
 import csv
 from itertools import cycle
 from selenium import webdriver
@@ -14,14 +14,14 @@ from time import sleep
 from datetime import datetime
 from private import USER, PASSWORD, CHROMEPATH, DEPTCODE
 
-## Custom exceptions
+# Custom exceptions
 
 
 class WrongPageException(BaseException):
     pass
 
 
-## Functions
+# Functions
 
 
 def grab_data(term="FALL2019"):
@@ -38,25 +38,25 @@ def grab_data(term="FALL2019"):
         Nothing.
     """
 
-    ## Initialize webdriver
+    # Initialize webdriver
 
     driver = webdriver.Chrome(CHROMEPATH)
 
-    ## Convenience function
+    # Convenience function
 
     def reset_driver_frame(frame_name):
         driver.switch_to.default_content()
         iframe = driver.find_element_by_name(frame_name)
         driver.switch_to.frame(iframe)
 
-    ## Load our site
+    # Load our site
 
     driver.get("https://prod-ban-nav.msudenver.edu/applicationNavigator/seamless")
     sleep(3)
-    if not "Authentication" in driver.title:
+    if "Authentication" not in driver.title:
         raise WrongPageException
 
-    ## Authenticate and login
+    # Authenticate and login
 
     user_box = driver.find_element_by_name("username")
     user_box.clear()
@@ -70,9 +70,9 @@ def grab_data(term="FALL2019"):
     submit_btn.click()
     sleep(3)
 
-    ## Head to the enrollment report
+    # Head to the enrollment report
 
-    if not "Navigator" in driver.title:
+    if "Navigator"not in driver.title:
         raise WrongPageException
     # assert "Navigator" in driver.title
     search_box = driver.find_element_by_id("search-landing")
@@ -81,10 +81,10 @@ def grab_data(term="FALL2019"):
     search_box.send_keys(Keys.RETURN)
     sleep(5)
 
-    ## Set enrollment report parameters
+    # Set enrollment report parameters
 
     reset_driver_frame("bannerHS")
-    form_title = driver.find_element_by_xpath('//*[@id="tab-container"]/div[2]/div[2]')
+    # form_title = driver.find_element_by_xpath('//*[@id="tab-container"]/div[2]/div[2]')
     # if not "" in form_title:  FIXME: Find valid testing assertion!
     # raise WrongPageException
     param_set = driver.find_element_by_xpath(
@@ -99,12 +99,12 @@ def grab_data(term="FALL2019"):
     go_btn.click()
     sleep(3)
 
-    ## Select database print and process
+    # Select database print and process
 
     reset_driver_frame("bannerHS")
-    proc_title = driver.find_element_by_xpath(
-        '//*[@id="tab-container"]/div[2]/div[2]/title'
-    )
+    # proc_title = driver.find_element_by_xpath(
+    #     '//*[@id="tab-container"]/div[2]/div[2]/title'
+    # )
     # if not "Process Submission" in proc_title:  # FIXME
     #     raise WrongPageException
 
@@ -119,18 +119,18 @@ def grab_data(term="FALL2019"):
     sleep(30)  # Long wait for the SQL call to happen, may need even longer.
     # TODO: Can we somehow dynamically tell when the file is ready?
 
-    ## Access results page
+    # Access results page
 
     reset_driver_frame("bannerHS")
     first_tools_btn = driver.find_element_by_xpath('//*[@id="related-tools"]/a')
     first_tools_btn.click()
 
-    reset_driver_frame("bannerHS") # FIXME: Maybe it's outside the iframe?
+    reset_driver_frame("bannerHS")  # FIXME: Maybe it's outside the iframe?
     retrieve_btn = driver.find_element_by_xpath('//*[@id="menu-related"]/ul/li[2]/a')
     retrieve_btn.click()  # FIXME: Incorrect element or can't access frame; program stalls
     sleep(3)
 
-    ## Find our results and display them
+    # Find our results and display them
 
     # if not x in y:  FIXME: Add page verification
     # raise WrongPageException
@@ -144,7 +144,7 @@ def grab_data(term="FALL2019"):
     ok_btn = driver.find_element_by_xpath('//*[@id="btok"]')
     ok_btn.click()
 
-    ## Display plain text version
+    # Display plain text version
 
     reset_driver_frame("bannerHS")
     tools_btn = driver.find_element_by_xpath('//*[@id="related-tools"]/a')
@@ -154,13 +154,13 @@ def grab_data(term="FALL2019"):
     show_doc = driver.find_element_by_xpath('//*[@id="menu-tools"]/ul/li[13]/a')
     show_doc.click()
 
-    ## Click yes to the warning
+    # Click yes to the warning
 
     reset_driver_frame("bannerHS")
     yes_btn = driver.find_element_by_xpath('//*[@id="frames49"]')
     yes_btn.click()
 
-    ## Save the file
+    # Save the file
 
     driver.switch_to.default_content()
     # if not x in y: # FIXME: Add page verification
@@ -168,7 +168,7 @@ def grab_data(term="FALL2019"):
 
     make_csv(driver.page_source)
 
-    ## Wrap it up
+    # Wrap it up
     driver.close()
 
 
@@ -187,7 +187,7 @@ def alternating_size_chunks(iterable, steps):
     step = cycle(steps)
     while n < len(iterable):
         next_step = next(step)
-        yield iterable[n : n + next_step]
+        yield iterable[n: n + next_step]
         n += next_step
 
 
