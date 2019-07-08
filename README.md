@@ -1,7 +1,7 @@
 # academia-admin-automation
  Miscellaneous scripts to automate administrative tasks in academia.
 
-![gpl3.0](https://img.shields.io/github/license/Paradoxdruid/academia-admin-automation.svg?style=plastic "GPL 3.0 Licensed")
+![gpl3.0](https://img.shields.io/github/license/Paradoxdruid/academia-admin-automation.svg "GPL 3.0 Licensed")
 
 ## Current Scripts
 
