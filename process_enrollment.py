@@ -24,7 +24,10 @@ def alternating_size_chunks(iterable, steps):
     n = 0
     step = cycle(steps)
     while n < len(iterable):
-        next_step = next(step)
+        try:
+            next_step = next(step)
+        except StopIteration:
+            continue
         yield iterable[n: n + next_step]
         n += next_step
 
