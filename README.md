@@ -1,9 +1,14 @@
 # academia-admin-automation
  Miscellaneous scripts to automate administrative tasks in academia.
 
-![gpl3.0](https://img.shields.io/github/license/Paradoxdruid/academia-admin-automation.svg "GPL 3.0 Licensed")
+![gpl3.0](https://img.shields.io/github/license/Paradoxdruid/academia-admin-automation.svg "GPL 3.0 Licensed")  [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+
 
 ## Current Scripts
+
+1. [process_enrollment.py](#process_enrollmentpy)
+2. [scheduler.py](#schedulerpy)
+3. [mol2scad.py](#mol2scadpy)
 
 ### process_enrollment.py
 

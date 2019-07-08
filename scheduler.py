@@ -72,7 +72,7 @@ def grab_data(term="FALL2019"):
 
     # Head to the enrollment report
 
-    if "Navigator"not in driver.title:
+    if "Navigator" not in driver.title:
         raise WrongPageException
     # assert "Navigator" in driver.title
     search_box = driver.find_element_by_id("search-landing")
@@ -190,7 +190,7 @@ def alternating_size_chunks(iterable, steps):
             next_step = next(step)
         except StopIteration:
             continue
-        yield iterable[n: n + next_step]
+        yield iterable[n : n + next_step]
         n += next_step
 
 
