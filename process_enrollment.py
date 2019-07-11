@@ -7,6 +7,56 @@ import csv
 from itertools import cycle
 import argparse
 
+# Constants
+HEADER_ROW = [
+    "Subject",
+    "Number",
+    "CRN",
+    "Section",
+    "S",
+    "Campus",
+    "T",
+    "Title",
+    "Credit",
+    "Max",
+    "Enrolled",
+    "WCap",
+    "WList",
+    "Days",
+    "Time",
+    "Loc",
+    "Rcap",
+    "Full",
+    "Begin/End",
+    "Instructor",
+]
+
+SPACER_ROW = [
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+]
+
+# This is the line pattern of SWRCGSR output in Banner 9
+LINE_PATTERN = (5, 5, 6, 4, 2, 4, 2, 16, 7, 5, 5, 5, 5, 8, 12, 8, 5, 5, 12, 19)
+
 # Functions
 
 
@@ -52,58 +102,8 @@ def main(filename, output_name, dept):
     newfile = []
 
     # SWRCGSR headers and spacer row
-    newfile.append(
-        [
-            "Subject",
-            "Number",
-            "CRN",
-            "Section",
-            "S",
-            "Campus",
-            "T",
-            "Title",
-            "Credit",
-            "Max",
-            "Enrolled",
-            "WCap",
-            "WList",
-            "Days",
-            "Time",
-            "Loc",
-            "Rcap",
-            "Full",
-            "Begin/End",
-            "Instructor",
-        ]
-    )
-
-    newfile.append(
-        [
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-        ]
-    )
-
-    # This is the line pattern of SWRCGSR output
-    line_pattern = (5, 5, 6, 4, 2, 4, 2, 16, 7, 5, 5, 5, 5, 8, 12, 8, 5, 5, 12, 19)
+    newfile.append(HEADER_ROW)
+    newfile.append(SPACER_ROW)
 
     # Open and process text file output
     with open(filename) as csvfile:
@@ -116,11 +116,9 @@ def main(filename, output_name, dept):
             newrow = (
                 row[0][:140].ljust(140) if len(row[0][:140]) < 140 else row[0][:140]
             )
-            # else:
-            #     continue
 
             # break lines with data into a list of pieces
-            newlist = list(alternating_size_chunks(newrow, line_pattern))
+            newlist = list(alternating_size_chunks(newrow, LINE_PATTERN))
 
             # Catch non-data containing lines and skip them
             if newlist[14] == "            ":
@@ -134,6 +132,7 @@ def main(filename, output_name, dept):
             # remove leading and trailing whitespace
             [(i, j.strip()) for (i, j) in enumerate(newlist)]
 
+            # Add the entry to our output list
             newfile.append(newlist)
 
     # Remove final non-data lines

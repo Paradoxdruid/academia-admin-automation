@@ -6,6 +6,7 @@ using Selenium and csv.
 """
 
 # Imports
+
 import csv
 from itertools import cycle
 from selenium import webdriver
@@ -13,6 +14,59 @@ from selenium.webdriver.common.keys import Keys
 from time import sleep
 from datetime import datetime
 from private import USER, PASSWORD, CHROMEPATH, DEPTCODE
+
+
+# Constants
+
+HEADER_ROW = [
+    "Subject",
+    "Number",
+    "CRN",
+    "Section",
+    "S",
+    "Campus",
+    "T",
+    "Title",
+    "Credit",
+    "Max",
+    "Enrolled",
+    "WCap",
+    "WList",
+    "Days",
+    "Time",
+    "Loc",
+    "Rcap",
+    "Full",
+    "Begin/End",
+    "Instructor",
+]
+
+SPACER_ROW = [
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+    "---",
+]
+
+# This is the line pattern of SWRCGSR output
+LINE_PATTERN = (5, 5, 6, 4, 2, 4, 2, 16, 7, 5, 5, 5, 5, 8, 12, 8, 5, 5, 12, 19)
+
 
 # Custom exceptions
 
@@ -24,12 +78,12 @@ class WrongPageException(BaseException):
 # Functions
 
 
-def grab_data(term="FALL2019"):
+def grab_data(term):
     """
     grab_data will use selenium to download a plain text copy of the latest SWRCGSR data.
 
     User must supply username, password, dept code, and chromedriver path in private.py.
-    Passed as parameters are term.
+    Passed as a parameter is term to process.
 
     Args:
         term: str of the term to process.
@@ -166,6 +220,7 @@ def grab_data(term="FALL2019"):
     # if not x in y: # FIXME: Add page verification
     #     raise WrongPageException
 
+    # Create the output csv
     make_csv(driver.page_source)
 
     # Wrap it up
@@ -216,58 +271,9 @@ def make_csv(filename):
     newfile = []
 
     # SWRCGSR headers and spacer row
-    newfile.append(
-        [
-            "Subject",
-            "Number",
-            "CRN",
-            "Section",
-            "S",
-            "Campus",
-            "T",
-            "Title",
-            "Credit",
-            "Max",
-            "Enrolled",
-            "WCap",
-            "WList",
-            "Days",
-            "Time",
-            "Loc",
-            "Rcap",
-            "Full",
-            "Begin/End",
-            "Instructor",
-        ]
-    )
+    newfile.append(HEADER_ROW)
 
-    newfile.append(
-        [
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-            "---",
-        ]
-    )
-
-    # This is the line pattern of SWRCGSR output
-    line_pattern = (5, 5, 6, 4, 2, 4, 2, 16, 7, 5, 5, 5, 5, 8, 12, 8, 5, 5, 12, 19)
+    newfile.append(SPACER_ROW)
 
     # Open and process text file output
     reader = csv.reader(filename)
@@ -281,7 +287,7 @@ def make_csv(filename):
         #     continue
 
         # break lines with data into a list of pieces
-        newlist = list(alternating_size_chunks(newrow, line_pattern))
+        newlist = list(alternating_size_chunks(newrow, LINE_PATTERN))
 
         # Catch non-data containing lines and skip them
         if newlist[14] == "            ":
