@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-"""Process SWRCGSR data from BANNER databases."""
+"""Process SWRCGSR data from BANNER databases.
+
+In Banner 9, download the SWRCGSR output as a text document,  using 'Show Output'.
+Then, run this script on the downloaded text file.
+"""
 
 # Imports
 import csv
@@ -31,28 +35,7 @@ HEADER_ROW = [
     "Instructor",
 ]
 
-SPACER_ROW = [
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-    "---",
-]
+SPACER_ROW = ["---" for i in range(21)]
 
 # This is the line pattern of SWRCGSR output in Banner 9
 LINE_PATTERN = (5, 5, 6, 4, 2, 4, 2, 16, 7, 5, 5, 5, 5, 8, 12, 8, 5, 5, 12, 19)
