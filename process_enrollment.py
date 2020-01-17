@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
     # Run the program, defaulting to Chemistry for convenience
     if not args.dept:
-        out = args.input[:-3] + "xslx"
+        out = args.input[:-3] + "xlsx"
         main(args.input, out, "CHE")
     else:
         out = args.input[:-3] + "xlsx"
