@@ -13,33 +13,29 @@ from itertools import cycle
 import argparse
 
 # Constants
-HEADER_ROW = [
-    "Subject",
-    "Number",
-    "CRN",
-    "Section",
-    "S",
-    "Campus",
-    "T",
-    "Title",
-    "Credit",
-    "Max",
-    "Enrolled",
-    "WCap",
-    "WList",
-    "Days",
-    "Time",
-    "Loc",
-    "Rcap",
-    "Full",
-    "Begin/End",
-    "Instructor",
-]
-
-SPACER_ROW = ["---" for i in range(21)]
-
-# This is the line pattern of SWRCGSR output in Banner 9
-LINE_PATTERN = (5, 5, 6, 4, 2, 4, 2, 16, 7, 5, 5, 5, 5, 8, 12, 8, 5, 5, 12, 19)
+# This is the both the headers and the associated line pattern of SWRCGSR output in Banner 9
+HEADER_ROW = {
+    "Subject": 5,
+    "Number": 5,
+    "CRN": 6,
+    "Section": 4,
+    "S": 2,
+    "Campus": 4,
+    "T": 2,
+    "Title": 16,
+    "Credit": 7,
+    "Max": 5,
+    "Enrolled": 5,
+    "WCap": 5,
+    "WList": 5,
+    "Days": 8,
+    "Time": 12,
+    "Loc": 8,
+    "Rcap": 5,
+    "Full": 5,
+    "Begin/End": 12,
+    "Instructor": 19,
+}
 
 # Functions
 
@@ -86,8 +82,7 @@ def main(filename, output_name, dept):
     newfile = []
 
     # SWRCGSR headers and spacer row
-    newfile.append(HEADER_ROW)
-    newfile.append(SPACER_ROW)
+    newfile.append(HEADER_ROW.keys())
 
     # Open and process text file output
     with open(filename) as csvfile:
@@ -102,7 +97,7 @@ def main(filename, output_name, dept):
             )
 
             # break lines with data into a list of pieces
-            newlist = list(alternating_size_chunks(newrow, LINE_PATTERN))
+            newlist = list(alternating_size_chunks(newrow, HEADER_ROW.values()))
 
             # Catch non-data containing lines and skip them
             if newlist[14] == "            ":
@@ -112,6 +107,26 @@ def main(filename, output_name, dept):
                 (newlist[0][0] == " " and newlist[0][2] == " ") or newlist[0][0] == dep
             ):
                 continue
+
+            # convert time format from 12hr to 24hr and account for TBA times
+            timeslot = newlist[14]
+            try:
+                starthour = int(timeslot[0:2])
+                endhour = int(timeslot[5:7])
+                if timeslot[-3:-1] == "PM":
+                    starthour = starthour + 12 if starthour + 12 < 21 else starthour
+                    endhour = endhour + 12 if endhour + 12 < 22 else endhour
+                newlist[14] = (
+                    str(starthour).zfill(2)
+                    + ":"
+                    + timeslot[2:4]
+                    + " - "
+                    + str(endhour).zfill(2)
+                    + ":"
+                    + timeslot[7:9]
+                )
+            except ValueError:  # catch the TBA times
+                newlist[14] = timeslot[:-1]
 
             # remove leading and trailing whitespace
             newlist = [i.strip() for i in newlist]
@@ -151,7 +166,7 @@ def write_and_format(input_list, output_name):
     # Process the data
     rowCount = 0
     for row in input_list:
-        if rowCount == 0 or rowCount == 1:
+        if rowCount == 0:
             colCount = 0
             for column in row:
                 worksheet.write(rowCount, colCount, column, bold)
@@ -159,12 +174,15 @@ def write_and_format(input_list, output_name):
         else:
             colCount = 0
             for column in row:
+                # force Excel to see the course and section numbers as text
+                if colCount == 3 or colCount == 1:
+                    column = '="' + column + '"'
                 worksheet.write(rowCount, colCount, column)
                 colCount += 1
         rowCount += 1
 
     # Set up for easy scrolling
-    worksheet.freeze_panes(2, 0)
+    worksheet.freeze_panes(1, 0)
 
     # Format column widths
     worksheet.set_column("A:A", 6.5)
@@ -199,6 +217,8 @@ def write_and_format(input_list, output_name):
     format4 = workbook.add_format({"bg_color": "#008000", "font_color": "#000000"})
 
     # Add enrollment evaluation conditions
+
+    # classes that have enrollment above 94% of capacity
     worksheet.conditional_format(
         2,  # row 3
         10,  # column K
@@ -206,6 +226,8 @@ def write_and_format(input_list, output_name):
         10,  # column K
         {"type": "formula", "criteria": "=$K3>0.94*$J3", "format": format4},
     )
+
+    # classes that have enrollment above 80% of capacity
     worksheet.conditional_format(
         2,  # row 3
         10,  # column K
@@ -213,6 +235,8 @@ def write_and_format(input_list, output_name):
         10,  # column K
         {"type": "formula", "criteria": "=$K3>0.8*$J3", "format": format3},
     )
+
+    # classes that have enrollment below 10 students
     worksheet.conditional_format(
         2,  # row 3
         10,  # column K
@@ -220,6 +244,8 @@ def write_and_format(input_list, output_name):
         10,  # column K
         {"type": "formula", "criteria": "=$K3<10", "format": format1},
     )
+
+    # classes that have students on the waitlist
     worksheet.conditional_format(
         2,  # row 3
         12,  # column M
