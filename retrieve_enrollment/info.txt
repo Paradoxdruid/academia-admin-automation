@@ -1,0 +1,4 @@
+term = 202040, 202050
+school = LA
+department = CHE
+createmergefile = N
