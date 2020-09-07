@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
 # Import required libraries
-import csv
 import dash
 import pandas as pd
-from itertools import cycle
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.express as px
@@ -25,25 +23,6 @@ server = app.server
 
 
 # Helper Functions
-def alternating_size_chunks(iterable, steps):
-    """Break apart a line into chunks of provided sizes
-
-    Args:
-        iterable: Line of text to process.
-        steps: Tuple of int sizes to divide text, will cycle.
-
-    Returns:
-        Return a generator that yields string chunks of the original line.
-    """
-
-    n = 0
-    step = cycle(steps)
-    while n < len(iterable):
-        next_step = next(step)
-        yield iterable[n : n + next_step]
-        n += next_step
-
-
 def make_dash_table(df):
     """ Return a dash definition of an HTML table for a Pandas dataframe """
     table = []
@@ -55,15 +34,69 @@ def make_dash_table(df):
     return table
 
 
+def tidy_data(file_contents):
+    """Take in SWRCGSR output and format into pandas-compatible format.
+
+    Args:
+        file_contents:
+            input decoded filestream of SWRCGSR output from an uploaded textfile.
+
+    Returns:
+        Dataframe.
+    """
+
+    _LINE_PATTERN = [
+        (0, 5),
+        (5, 10),
+        (10, 16),
+        (16, 20),
+        (20, 22),
+        (22, 26),
+        (26, 28),
+        (28, 44),
+        (44, 51),
+        (51, 56),
+        (56, 61),
+        (61, 66),
+        (66, 71),
+        (71, 79),
+        (79, 91),
+        (91, 99),
+        (99, 104),
+        (104, 109),
+        (109, 121),
+        (121, 140),
+    ]
+
+    _df = pd.read_fwf(file_contents, colspecs=_LINE_PATTERN)
+    _df.columns = _df.iloc[7]
+    _df = _df[_df["CRN"].notna()]
+    _df = _df[_df.CRN.apply(lambda x: x.isnumeric())]
+    _df.rename(
+        columns={
+            "Subj": "Subject",
+            "Nmbr": "Number",
+            "Sec": "Section",
+            "Cam": "Campus",
+            "Enrl": "Enrolled",
+            "WLst": "WList",
+            "%Ful": "Full",
+        },
+        inplace=True,
+    )
+    _df[["Credit", "Max", "Enrolled", "WCap", "WList"]] = _df[
+        ["Credit", "Max", "Enrolled", "WCap", "WList"]
+    ].apply(pd.to_numeric, errors="coerce")
+    return _df
+
+
+# Data wrapper class
 class EnrollmentData:
     """ Encapsulate a dataframe with helpful accessors for summary statistics and graphs """
 
     def __init__(self, df):
         self.df = df
-        # Helper columns and tidying
-        self.df[["Credit", "Max", "Enrolled", "WCap", "WList"]] = self.df[
-            ["Credit", "Max", "Enrolled", "WCap", "WList"]
-        ].apply(pd.to_numeric, errors="coerce")
+        # Helper columns
         self.df["CHP"] = self.df["Credit"] * self.df["Enrolled"]
         self.df["Course"] = self.df["Subject"] + self.df["Number"]
         self.df["Ratio"] = self.df["Enrolled"] / self.df["Max"]
@@ -147,11 +180,20 @@ class EnrollmentData:
     def f2f_df(self):
         _df = self.df.groupby("Loc").sum()
         _df.reset_index(inplace=True)
-        _df2 = _df[(_df["Loc"] != "SYNC  T") & (_df["Loc"] != "ASYN  T")]
+        _df2 = _df[
+            (_df["Loc"] != "SYNC  T")
+            & (_df["Loc"] != "ASYN  T")
+            & (_df["Loc"] != "ONLI  T")
+        ]
         _df3 = pd.DataFrame(_df2.sum(axis=0)).T
         _df3.iloc[0, 0] = "F2F"
         f2f_df = pd.concat(
-            [_df[_df["Loc"] == "ASYN  T"], _df[_df["Loc"] == "SYNC  T"], _df3]
+            [
+                _df[_df["Loc"] == "ASYN  T"],
+                _df[_df["Loc"] == "SYNC  T"],
+                _df[_df["Loc"] == "ONLI  T"],
+                _df3,
+            ]
         )
         f2f_df.reset_index(drop=True)
         return f2f_df
@@ -159,10 +201,18 @@ class EnrollmentData:
     def f2f_df2(self):
         _df = self.df.groupby("Loc").sum()
         _df.reset_index(inplace=True)
-        _df2 = _df[(_df["Loc"] != "SYNC  T") & (_df["Loc"] != "ASYN  T")]
+        _df2 = _df[
+            (_df["Loc"] != "SYNC  T")
+            & (_df["Loc"] != "ASYN  T")
+            & (_df["Loc"] != "ONLI  T")
+        ]
         _df3 = pd.DataFrame(_df2.sum(axis=0)).T
         _df3.iloc[0, 0] = "F2F"
-        _df4 = _df[(_df["Loc"] == "SYNC  T") | (_df["Loc"] == "ASYN  T")]
+        _df4 = _df[
+            (_df["Loc"] == "SYNC  T")
+            | (_df["Loc"] == "ASYN  T")
+            | (_df["Loc"] != "ONLI  T")
+        ]
         _df5 = pd.DataFrame(_df4.sum(axis=0)).T
         _df5.iloc[0, 0] = "Online"
         f2f_df2 = pd.concat([_df3, _df5])
@@ -179,7 +229,7 @@ class EnrollmentData:
         full_f2f_df.reset_index(inplace=True)
         full_f2f_df
         full_f2f_df["Online"] = np.where(
-            full_f2f_df["Loc"].isin(["ASYN  T", "SYNC  T"]), "Online", "F2F"
+            full_f2f_df["Loc"].isin(["ASYN  T", "SYNC  T", "ONLI  T"]), "Online", "F2F"
         )
         return full_f2f_df
 
@@ -231,85 +281,6 @@ class EnrollmentData:
             .update_xaxes(categoryorder="total descending")
             .update_layout(showlegend=False)
         )
-
-
-def tidy_data(file_contents):
-    """Take in SWRCGSR output and format into pandas-compatible format.
-
-    Args:
-        file_contents:
-            input decoded filestream of SWRCGSR output from an uploaded textfile.
-
-    Returns:
-        List of Lists of Output.
-    """
-
-    # Initialize our output list of lists
-    newfile = []
-
-    # SWRCGSR headers
-    newfile.append(
-        [
-            "Subject",
-            "Number",
-            "CRN",
-            "Section",
-            "S",
-            "Campus",
-            "T",
-            "Title",
-            "Credit",
-            "Max",
-            "Enrolled",
-            "WCap",
-            "WList",
-            "Days",
-            "Time",
-            "Loc",
-            "Rcap",
-            "Full",
-            "Begin/End",
-            "Instructor",
-        ]
-    )
-
-    # This is the line pattern of SWRCGSR output spacing
-    line_pattern = (5, 5, 6, 4, 2, 4, 2, 16, 7, 5, 5, 5, 5, 8, 12, 8, 5, 5, 12, 19)
-
-    # Open and process text file output
-    reader = csv.reader(file_contents)
-    # eliminate top rows without data
-    for _ in range(6):
-        next(reader)
-    _sub_line = next(reader)  # grab department code from this line
-    _subjplus = _sub_line[0].split("Subject: ")[1]
-    dep = _subjplus.split(" --")[0][0]
-    for row in reader:
-        # trim extra spaces or pad to adjust to 140 characters
-        newrow = row[0][:140].ljust(140) if len(row[0][:140]) < 140 else row[0][:140]
-
-        # break lines with data into a list of pieces
-        newlist = list(alternating_size_chunks(newrow, line_pattern))
-
-        # Catch non-data containing lines and skip them
-        if newlist[14] == "            ":
-            continue
-
-        if not (
-            (newlist[0][0] == " " and newlist[0][2] == " ") or newlist[0][0] == dep
-        ):
-            continue
-
-        # remove leading and trailing whitespace
-        newlist = [i.strip() for i in newlist]
-
-        newfile.append(newlist)
-
-    # Remove final non-data lines
-    newfile = newfile[:-2]
-
-    # Finish
-    return newfile
 
 
 # Create app layout
@@ -383,11 +354,9 @@ def parse_contents(contents, filename, date):
     decoded = base64.b64decode(content_string)
     try:
         if "txt" in filename:
-            # Assume that the user uploaded a CSV file with .txt extension
+            # Assume that the user uploaded a banner fixed width file with .txt extension
             # Load data
-            raw_data = tidy_data(io.StringIO(decoded.decode("utf-8")))
-            raw_columns = raw_data.pop(0)
-            df = pd.DataFrame(raw_data, columns=raw_columns)
+            df = tidy_data(io.StringIO(decoded.decode("utf-8")))
         # elif "xls" in filename:
         #     # Assume that the user uploaded an excel file
         #     df = pd.read_excel(io.BytesIO(decoded))
@@ -582,10 +551,6 @@ def parse_contents(contents, filename, date):
                         ],
                         className="pretty_container three columns",
                     ),
-                    # html.Div(
-                    #     [dcc.Graph(id="aggregate_graph")],
-                    #     className="pretty_container six columns",
-                    # ),
                     html.Div(
                         [dcc.Graph(figure=data.graph_f2f(), id="graph_f2f")],
                         className="pretty_container five columns",
