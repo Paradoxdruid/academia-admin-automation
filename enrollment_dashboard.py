@@ -23,17 +23,6 @@ server = app.server
 
 
 # Helper Functions
-def make_dash_table(df):
-    """ Return a dash definition of an HTML table for a Pandas dataframe """
-    table = []
-    for index, row in df.iterrows():
-        html_row = []
-        for i in range(len(row)):
-            html_row.append(html.Td([row[i]]))
-        table.append(html.Tr(html_row))
-    return table
-
-
 def tidy_data(file_contents):
     """Take in SWRCGSR output and format into pandas-compatible format.
 
@@ -70,6 +59,67 @@ def tidy_data(file_contents):
 
     _df = pd.read_fwf(file_contents, colspecs=_LINE_PATTERN)
     _df.columns = _df.iloc[7]
+    _df = _df[_df["CRN"].notna()]
+    _df = _df[_df.CRN.apply(lambda x: x.isnumeric())]
+    _df.rename(
+        columns={
+            "Subj": "Subject",
+            "Nmbr": "Number",
+            "Sec": "Section",
+            "Cam": "Campus",
+            "Enrl": "Enrolled",
+            "WLst": "WList",
+            "%Ful": "Full",
+        },
+        inplace=True,
+    )
+    _df[["Credit", "Max", "Enrolled", "WCap", "WList"]] = _df[
+        ["Credit", "Max", "Enrolled", "WCap", "WList"]
+    ].apply(pd.to_numeric, errors="coerce")
+    return _df
+
+
+def tidy_csv(file_contents):
+    """Take in SWRCGSR output and format into pandas-compatible format.
+
+    Args:
+        file_contents:
+            input decoded filestream of SWRCGSR output from an uploaded textfile.
+
+    Returns:
+        Dataframe.
+    """
+
+    _LINE_PATTERN = [
+        (0, 5),
+        (5, 10),
+        (10, 16),
+        (16, 20),
+        (20, 22),
+        (22, 26),
+        (26, 28),
+        (28, 44),
+        (44, 51),
+        (51, 56),
+        (56, 61),
+        (61, 66),
+        (66, 71),
+        (71, 79),
+        (79, 91),
+        (91, 99),
+        (99, 104),
+        (104, 109),
+        (109, 121),
+        (121, 140),
+    ]
+
+    _list = []
+    for line in file_contents:
+        _list.append(line.replace(",", ""))
+    _list = _list[4:]
+    _file = "".join(_list)
+    _df = pd.read_fwf(io.StringIO(_file), colspecs=_LINE_PATTERN)
+    _df.columns = _df.iloc[3]
     _df = _df[_df["CRN"].notna()]
     _df = _df[_df.CRN.apply(lambda x: x.isnumeric())]
     _df.rename(
@@ -233,6 +283,11 @@ class EnrollmentData:
         )
         return full_f2f_df
 
+    def enrolled_vs_max(self):
+        return self.df.loc[
+            :, ["Course", "Ratio", "Enrolled", "Max", "Days", "Time", "Instructor"]
+        ].sort_values(by=["Max", "Enrolled", "Ratio"], axis=0, ascending=False)
+
     # Prepare graphs
     def graph_enrollment_by_instructor(self):
         return (
@@ -240,8 +295,16 @@ class EnrollmentData:
                 self.df,
                 x="Instructor",
                 y="Enrolled",
-                color="CRN",
+                color="Ratio",
                 title="Enrollment by Instructor",
+                color_continuous_scale=px.colors.sequential.RdBu,
+                hover_name="CRN",
+                hover_data={
+                    "Course": True,
+                    "Enrolled": True,
+                    "Instructor": True,
+                    "Ratio": False,
+                },
             )
             .update_xaxes(categoryorder="total descending")
             .update_layout(showlegend=False)
@@ -253,8 +316,9 @@ class EnrollmentData:
                 self.df,
                 x="Course",
                 y="CHP",
-                color="CRN",
                 title="Credit Hour Production by Course",
+                color="Ratio",
+                color_continuous_scale=px.colors.sequential.RdBu,
             )
             .update_xaxes(categoryorder="total descending")
             .update_layout(showlegend=False)
@@ -280,6 +344,51 @@ class EnrollmentData:
             )
             .update_xaxes(categoryorder="total descending")
             .update_layout(showlegend=False)
+        )
+
+    def graph_ratio_course(self):
+        _df = (
+            self.df.groupby("Course")
+            .agg(
+                {
+                    "Instructor": "size",
+                    "Credit": "sum",
+                    "Enrolled": "sum",
+                    "Max": "sum",
+                    "CHP": "sum",
+                    "Ratio": "mean",
+                }
+            )
+            .sort_values("CHP", ascending=False)
+        )
+        return (
+            px.bar(
+                _df,
+                y=["Max", "Enrolled"],
+                title="Enrollment per Course",
+                hover_data={"Ratio": True},
+            )
+            .update_xaxes(categoryorder="max descending")
+            .update_layout(showlegend=False, xaxis_type="category", barmode="overlay")
+        )
+
+    def graph_ratio_crn(self):
+        return (
+            px.bar(
+                self.df,
+                x="CRN",
+                y=["Max", "Enrolled"],
+                title="Enrollment per Section",
+                hover_name="CRN",
+                hover_data={
+                    "Course": True,
+                    "CRN": False,
+                    "Instructor": True,
+                    "Ratio": True,
+                },
+            )
+            .update_xaxes(categoryorder="max descending", showticklabels=False)
+            .update_layout(showlegend=False, xaxis_type="category", barmode="overlay")
         )
 
 
@@ -357,6 +466,8 @@ def parse_contents(contents, filename, date):
             # Assume that the user uploaded a banner fixed width file with .txt extension
             # Load data
             df = tidy_data(io.StringIO(decoded.decode("utf-8")))
+        elif "csv" in filename:
+            df = tidy_csv(io.StringIO(decoded.decode("utf-8")))
         # elif "xls" in filename:
         #     # Assume that the user uploaded an excel file
         #     df = pd.read_excel(io.BytesIO(decoded))
@@ -441,18 +552,14 @@ def parse_contents(contents, filename, date):
             html.Div(
                 [
                     html.Div(
-                        [
-                            dcc.Graph(
-                                figure=data.graph_enrollment_by_instructor(),
-                                id="main_graph",
-                            )
-                        ],
+                        [dcc.Graph(figure=data.graph_ratio_crn(), id="main_graph")],
                         className="pretty_container six columns",
                     ),
                     html.Div(
                         [
                             dcc.Graph(
-                                figure=data.graph_chp_by_course(), id="individual_graph"
+                                figure=data.graph_enrollment_by_instructor(),
+                                id="individual_graph",
                             )
                         ],
                         className="pretty_container six columns",
@@ -554,6 +661,28 @@ def parse_contents(contents, filename, date):
                     html.Div(
                         [dcc.Graph(figure=data.graph_f2f(), id="graph_f2f")],
                         className="pretty_container five columns",
+                    ),
+                ],
+                className="row flex-display",
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            dcc.Graph(
+                                figure=data.graph_ratio_course(), id="main_graph_2"
+                            )
+                        ],
+                        className="pretty_container six columns",
+                    ),
+                    html.Div(
+                        [
+                            dcc.Graph(
+                                figure=data.graph_chp_by_course(),
+                                id="individual_graph_2",
+                            )
+                        ],
+                        className="pretty_container six columns",
                     ),
                 ],
                 className="row flex-display",
