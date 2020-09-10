@@ -78,6 +78,24 @@ def tidy_data(file_contents):
     ].apply(pd.to_numeric, errors="coerce")
     return _df
 
+# convert time format from 12hr to 24hr and account for TBA times
+def convertAMPMtime(timeslot):
+
+    try:
+        starthour = int(timeslot[0:2])
+        endhour = int(timeslot[5:7])
+        if timeslot[-2:] == "PM":
+            endhour = endhour + 12 if endhour < 12 else endhour
+            starthour = starthour + 12 if starthour+12 <= endhour else starthour
+        timeslot = "{:s}:{:s}-{:s}:{:s}".format(str(starthour).zfill(2),
+                                                timeslot[2:4],
+                                                str(endhour).zfill(2),
+                                                timeslot[7:9])
+    except ValueError: # catch the TBA times
+        pass
+
+    return timeslot
+
 
 def tidy_csv(file_contents):
     """Take in SWRCGSR output and format into pandas-compatible format.
@@ -137,6 +155,14 @@ def tidy_csv(file_contents):
     _df[["Credit", "Max", "Enrolled", "WCap", "WList"]] = _df[
         ["Credit", "Max", "Enrolled", "WCap", "WList"]
     ].apply(pd.to_numeric, errors="coerce")
+
+    # remove leading and trailing quotation marks and comma
+    _df["Subject"] = _df["Subject"].str.lstrip('"')
+    _df["Instructor"] = _df["Instructor"].str.rstrip('",')
+
+    # convert time from 12hr to 24hr
+    _df["Time"] = _df["Time"].apply(lambda x: convertAMPMtime(x))
+
     return _df
 
 
@@ -359,7 +385,7 @@ class EnrollmentData:
                     "Ratio": "mean",
                 }
             )
-            .sort_values("CHP", ascending=False)
+            .sort_values("Course", ascending=False)
         )
         return (
             px.bar(
@@ -368,7 +394,7 @@ class EnrollmentData:
                 title="Enrollment per Course",
                 hover_data={"Ratio": True},
             )
-            .update_xaxes(categoryorder="max descending")
+            # .update_xaxes(categoryorder="max descending")
             .update_layout(showlegend=False, xaxis_type="category", barmode="overlay")
         )
 
@@ -397,12 +423,16 @@ class EnrollmentData:
         writer = pd.ExcelWriter(
             xlsx_io, engine="xlsxwriter", options={"strings_to_numbers": True}
         )
+        self.df["Section"] = self.df["Section"].apply(lambda x: '="{x:s}"'.format(x = x))
+        self.df["Number"] = self.df["Number"].apply(lambda x: '="{x:s}"'.format(x = x))
         self.df.to_excel(writer, sheet_name="Enrollment", index=False)
 
         workbook = writer.book
         worksheet = writer.sheets["Enrollment"]
 
         # bold = workbook.add_format({"bold": True})
+
+        rowCount = len(self.df.index)
 
         worksheet.freeze_panes(1, 0)
         worksheet.set_column("A:A", 6.5)
@@ -437,31 +467,39 @@ class EnrollmentData:
         format4 = workbook.add_format({"bg_color": "#008000", "font_color": "#000000"})
 
         # Add enrollment evaluation conditions
+
+        # classes that have enrollment above 94% of capacity
         worksheet.conditional_format(
-            2,  # row 3
+            1,  # row 2
             10,  # column K
-            200,  # last row
+            rowCount,  # last row
             10,  # column K
-            {"type": "formula", "criteria": "=$K3>0.94*$J3", "format": format4},
+            {"type": "formula", "criteria": "=$K2>0.94*$J2", "format": format4},
         )
+
+        # classes that have enrollment above 80% of capacity
         worksheet.conditional_format(
-            2,  # row 3
+            1,  # row 2
             10,  # column K
-            200,  # last row
+            rowCount,  # last row
             10,  # column K
-            {"type": "formula", "criteria": "=$K3>0.8*$J3", "format": format3},
+            {"type": "formula", "criteria": "=$K2>0.8*$J2", "format": format3},
         )
+
+        # classes that have enrollment below 10 students
         worksheet.conditional_format(
-            2,  # row 3
+            1,  # row 2
             10,  # column K
-            200,  # last row
+            rowCount,  # last row
             10,  # column K
-            {"type": "formula", "criteria": "=$K3<10", "format": format1},
+            {"type": "formula", "criteria": "=$K2<10", "format": format1},
         )
+
+        # classes that have students on the waitlist
         worksheet.conditional_format(
-            2,  # row 3
+            1,  # row 2
             12,  # column M
-            200,  # last row
+            rowCount,  # last row
             12,  # column M
             {"type": "cell", "criteria": ">", "value": 0, "format": format2},
         )
