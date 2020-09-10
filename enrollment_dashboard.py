@@ -391,6 +391,88 @@ class EnrollmentData:
             .update_layout(showlegend=False, xaxis_type="category", barmode="overlay")
         )
 
+    # Output Excel files
+    def to_excel(self):
+        xlsx_io = io.BytesIO()
+        writer = pd.ExcelWriter(
+            xlsx_io, engine="xlsxwriter", options={"strings_to_numbers": True}
+        )
+        self.df.to_excel(writer, sheet_name="Enrollment", index=False)
+
+        workbook = writer.book
+        worksheet = writer.sheets["Enrollment"]
+
+        # bold = workbook.add_format({"bold": True})
+
+        worksheet.freeze_panes(1, 0)
+        worksheet.set_column("A:A", 6.5)
+        worksheet.set_column("B:B", 7)
+        worksheet.set_column("C:C", 5.5)
+        worksheet.set_column("D:D", 6.5)
+        worksheet.set_column("E:E", 2)
+        worksheet.set_column("F:F", 6.5)
+        worksheet.set_column("G:G", 2)
+        worksheet.set_column("H:H", 13.2)
+        worksheet.set_column("I:I", 5.5)
+        worksheet.set_column("J:J", 4)
+        worksheet.set_column("K:K", 7)
+        worksheet.set_column("L:L", 5)
+        worksheet.set_column("M:M", 5)
+        worksheet.set_column("N:N", 5.5)
+        worksheet.set_column("O:O", 12)
+        worksheet.set_column("P:P", 7)
+        worksheet.set_column("Q:Q", 4)
+        worksheet.set_column("R:R", 3.5)
+        worksheet.set_column("S:S", 10.5)
+        worksheet.set_column("T:T", 14)
+
+        # Common cell formatting
+        # Light red fill with dark red text
+        format1 = workbook.add_format({"bg_color": "#FFC7CE", "font_color": "#9C0006"})
+        # Light yellow fill with dark yellow text
+        format2 = workbook.add_format({"bg_color": "#FFEB9C", "font_color": "#9C6500"})
+        # Green fill with dark green text.
+        format3 = workbook.add_format({"bg_color": "#C6EFCE", "font_color": "#006100"})
+        # Darker green fill with black text.
+        format4 = workbook.add_format({"bg_color": "#008000", "font_color": "#000000"})
+
+        # Add enrollment evaluation conditions
+        worksheet.conditional_format(
+            2,  # row 3
+            10,  # column K
+            200,  # last row
+            10,  # column K
+            {"type": "formula", "criteria": "=$K3>0.94*$J3", "format": format4},
+        )
+        worksheet.conditional_format(
+            2,  # row 3
+            10,  # column K
+            200,  # last row
+            10,  # column K
+            {"type": "formula", "criteria": "=$K3>0.8*$J3", "format": format3},
+        )
+        worksheet.conditional_format(
+            2,  # row 3
+            10,  # column K
+            200,  # last row
+            10,  # column K
+            {"type": "formula", "criteria": "=$K3<10", "format": format1},
+        )
+        worksheet.conditional_format(
+            2,  # row 3
+            12,  # column M
+            200,  # last row
+            12,  # column M
+            {"type": "cell", "criteria": ">", "value": 0, "format": format2},
+        )
+
+        writer.save()
+        # TODO: insert second page writing code
+        xlsx_io.seek(0)
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        data = base64.b64encode(xlsx_io.read()).decode("utf-8")
+        return f"data:{media_type};base64,{data}"
+
 
 # Create app layout
 app.layout = html.Div(
@@ -479,6 +561,50 @@ def parse_contents(contents, filename, date):
 
     return html.Div(
         [
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            # Blank padding
+                        ],
+                        className="one-third column",
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                [
+                                    html.H5(
+                                        "Excel Formatted Output",
+                                        style={
+                                            "margin-bottom": "0px",
+                                            "text-align": "center",
+                                        },
+                                    ),
+                                    html.A(
+                                        "Download Excel Data",
+                                        id="excel-download",
+                                        download="data.xlsx",
+                                        href=data.to_excel(),
+                                        target="_blank",
+                                    ),
+                                ],
+                                style={"text-align": "center"},
+                            )
+                        ],
+                        className="one-half column",
+                        id="download",
+                    ),
+                    html.Div(
+                        [
+                            # Blank padding
+                        ],
+                        className="one-third column",
+                    ),
+                ],
+                id="header",
+                className="row flex-display",
+                style={"margin-bottom": "25px"},
+            ),
             html.Div(
                 [
                     html.Div(
