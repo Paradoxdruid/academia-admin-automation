@@ -35,5 +35,7 @@ Note: prior to use, `private.py` must be edited to have the user's Banner userna
 
 `enrollment_dashboard.py` is a [Dash](https://plotly.com/dash/) webapp to allow user submission of SWRCGSR data, providing a report of summary statistics and graphs as output.
 
+The webapp is live at [https://enroll.bonhamcode.com](https://enroll.bonhamcode.com).
+
 ## Authors
 These scripts are developed as academic software by [Dr. Andrew J. Bonham](https://github.com/Paradoxdruid) at the [Metropolitan State University of Denver](https://www.msudenver.edu). `retrieve_enrollment` was substantially developed in collaboration with [Dr. Henc Bouwmeester](https://github.com/HencBouwmeester).  It is licensed under the GPL v3.0.
