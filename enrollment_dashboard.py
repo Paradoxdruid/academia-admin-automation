@@ -78,6 +78,7 @@ def tidy_data(file_contents):
     ].apply(pd.to_numeric, errors="coerce")
     return _df
 
+
 # convert time format from 12hr to 24hr and account for TBA times
 def convertAMPMtime(timeslot):
 
@@ -86,12 +87,11 @@ def convertAMPMtime(timeslot):
         endhour = int(timeslot[5:7])
         if timeslot[-2:] == "PM":
             endhour = endhour + 12 if endhour < 12 else endhour
-            starthour = starthour + 12 if starthour+12 <= endhour else starthour
-        timeslot = "{:s}:{:s}-{:s}:{:s}".format(str(starthour).zfill(2),
-                                                timeslot[2:4],
-                                                str(endhour).zfill(2),
-                                                timeslot[7:9])
-    except ValueError: # catch the TBA times
+            starthour = starthour + 12 if starthour + 12 <= endhour else starthour
+        timeslot = "{:s}:{:s}-{:s}:{:s}".format(
+            str(starthour).zfill(2), timeslot[2:4], str(endhour).zfill(2), timeslot[7:9]
+        )
+    except ValueError:  # catch the TBA times
         pass
 
     return timeslot
@@ -423,14 +423,14 @@ class EnrollmentData:
         writer = pd.ExcelWriter(
             xlsx_io, engine="xlsxwriter", options={"strings_to_numbers": True}
         )
-        self.df["Section"] = self.df["Section"].apply(lambda x: '="{x:s}"'.format(x = x))
-        self.df["Number"] = self.df["Number"].apply(lambda x: '="{x:s}"'.format(x = x))
+        self.df["Section"] = self.df["Section"].apply(lambda x: '="{x:s}"'.format(x=x))
+        self.df["Number"] = self.df["Number"].apply(lambda x: '="{x:s}"'.format(x=x))
         self.df.to_excel(writer, sheet_name="Enrollment", index=False)
 
         workbook = writer.book
         worksheet = writer.sheets["Enrollment"]
 
-        # bold = workbook.add_format({"bold": True})
+        bold = workbook.add_format({"bold": True})
 
         rowCount = len(self.df.index)
 
@@ -504,8 +504,110 @@ class EnrollmentData:
             {"type": "cell", "criteria": ">", "value": 0, "format": format2},
         )
 
+        # New sheets
+        worksheet2 = workbook.add_worksheet("Statistics")
+        worksheet3 = workbook.add_worksheet("Data")
+
+        # Add stats
+        worksheet2.set_column("A:A", 25)
+
+        worksheet2.write(0, 0, "Summary Statistics", bold)
+
+        worksheet2.write(1, 0, "Average Fill Rate")
+        worksheet2.write(1, 1, round(self.df["Ratio"].mean(), 2))
+
+        worksheet2.write(3, 0, "Total Sections")
+        worksheet2.write(3, 1, self.df["CRN"].nunique())
+
+        worksheet2.write(5, 0, "Average Enrollment per Section")
+        worksheet2.write(5, 1, round(self.df["Enrolled"].mean(), 2))
+
+        worksheet2.write(7, 0, "Credit Hour Production")
+        worksheet2.write(7, 1, self.df["CHP"].sum())
+
+        worksheet2.write(9, 0, "Percent F2F Classes")
+        worksheet2.write(9, 1, self.percent_f2f())
+
+        # Enrollment Chart
+        chart = workbook.add_chart({"type": "column", "subtype": "stacked"})
+
+        chart_data = (
+            self.df.groupby("Course")
+            .agg({"Enrolled": "sum", "Max": "sum"})
+            .sort_values("Course", ascending=True)
+        )
+
+        data = chart_data.reset_index().T.values.tolist()
+
+        worksheet3.write_column("A1", data[0])
+        worksheet3.write_column("B1", data[1])
+        worksheet3.write_column("C1", data[2])
+
+        chart.add_series(
+            {
+                "categories": ["Data", 0, 0, len(data[0]), 0],
+                "values": ["Data", 0, 2, len(data[0]), 2],
+                "fill": {"color": "blue", "transparency": 50},
+            }
+        )
+        chart.add_series(
+            {
+                "categories": ["Data", 0, 0, len(data[0]), 0],
+                "values": ["Data", 0, 1, len(data[0]), 1],
+                "y2_axis": 1,
+                "fill": {"color": "red", "transparency": 50},
+            }
+        )
+
+        chart.set_size({"x_scale": 2, "y_scale": 1.5})
+
+        chart.set_title({"name": "Enrollment by Course"})
+        chart.set_legend({"none": True})
+        chart.set_y_axis(
+            {"name": "Students", "min": 0, "max": chart_data.max().max() + 50}
+        )
+
+        chart.set_y2_axis(
+            {"visible": False, "min": 0, "max": chart_data.max().max() + 50}
+        )
+
+        worksheet2.insert_chart("D2", chart)
+
+        # Online vs F2F chart
+        chart2 = workbook.add_chart({"type": "column", "subtype": "stacked"})
+
+        _one = (
+            self.full_f2f_df()[["Loc", "Online", "CHP"]]
+            .pivot(index="Loc", columns="Online", values="CHP")
+            .reset_index()
+        )
+        _two = pd.DataFrame(_one.columns.to_numpy())
+        _three = _two.T.rename(columns={0: "Loc", 1: "F2F", 2: "Online"})
+        data2 = pd.concat([_three, _one]).fillna(0).T.values.tolist()
+
+        worksheet3.write_column("D1", data2[0])
+        worksheet3.write_column("E1", data2[1])
+        worksheet3.write_column("F1", data2[2])
+
+        for i in range(len(data2[0]) - 1):
+            chart2.add_series(
+                {
+                    "name": ["Data", i, 3],
+                    "categories": ["Data", 0, 4, 0, 5],
+                    "values": ["Data", i + 1, 4, i + 1, 5],
+                }
+            )
+
+        chart2.set_size({"x_scale": 2, "y_scale": 1.5})
+
+        chart2.set_title({"name": "Online vs F2F"})
+        # chart.set_legend({'none': True})
+        chart2.set_y_axis({"name": "CHP"})
+
+        worksheet2.insert_chart("D25", chart2)
+
+        # Save it
         writer.save()
-        # TODO: insert second page writing code
         xlsx_io.seek(0)
         media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         data = base64.b64encode(xlsx_io.read()).decode("utf-8")
