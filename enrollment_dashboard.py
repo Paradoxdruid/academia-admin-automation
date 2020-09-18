@@ -512,21 +512,29 @@ class EnrollmentData:
         worksheet2.set_column("A:A", 25)
 
         worksheet2.write(0, 0, "Summary Statistics", bold)
-
         worksheet2.write(1, 0, "Average Fill Rate")
-        worksheet2.write(1, 1, round(self.df["Ratio"].mean(), 2))
+        try:
+            worksheet2.write(1, 1, round(self.df["Ratio"].mean(), 2))
+        except (KeyError, TypeError):
+            worksheet2.write(1, 1, 0.0)
 
         worksheet2.write(3, 0, "Total Sections")
         worksheet2.write(3, 1, self.df["CRN"].nunique())
 
         worksheet2.write(5, 0, "Average Enrollment per Section")
-        worksheet2.write(5, 1, round(self.df["Enrolled"].mean(), 2))
+        try:
+            worksheet2.write(5, 1, round(self.df["Enrolled"].mean(), 2))
+        except (KeyError, TypeError):
+            worksheet2.write(5, 1, 0.0)
 
         worksheet2.write(7, 0, "Credit Hour Production")
         worksheet2.write(7, 1, self.df["CHP"].sum())
 
         worksheet2.write(9, 0, "Percent F2F Classes")
-        worksheet2.write(9, 1, self.percent_f2f())
+        try:
+            worksheet2.write(9, 1, self.percent_f2f())
+        except (KeyError, TypeError):
+            worksheet2.write(9, 1, 0.0)
 
         # Enrollment Chart
         chart = workbook.add_chart({"type": "column", "subtype": "stacked"})
@@ -587,7 +595,12 @@ class EnrollmentData:
 
         worksheet3.write_column("D1", data2[0])
         worksheet3.write_column("E1", data2[1])
-        worksheet3.write_column("F1", data2[2])
+
+        try:
+            worksheet3.write_column("F1", data2[2])
+        except (KeyError, TypeError):
+            data2.append(["Online", *(len(data2[1]) - 1) * [0]])
+            worksheet3.write_column("F1", data2[2])
 
         for i in range(len(data2[0]) - 1):
             chart2.add_series(
