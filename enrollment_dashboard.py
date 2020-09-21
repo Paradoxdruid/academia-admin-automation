@@ -8,6 +8,7 @@ import dash_html_components as html
 import plotly.express as px
 import plotly.io as pio
 import dash_table
+import dash_table.FormatTemplate as FormatTemplate
 import numpy as np
 import base64
 import io
@@ -21,9 +22,11 @@ app = dash.Dash(
 )
 server = app.server
 
+app.title = "Enrollment Report Statistics"
+
 
 # Helper Functions
-def tidy_data(file_contents):
+def tidy_txt(file_contents):
     """Take in SWRCGSR output and format into pandas-compatible format.
 
     Args:
@@ -58,6 +61,10 @@ def tidy_data(file_contents):
     ]
 
     _df = pd.read_fwf(file_contents, colspecs=_LINE_PATTERN)
+
+    # read the report Term and Year from file
+    term_code = str(_df.iloc[5][1])[3:] + str(_df.iloc[5][2])[:-2]
+
     _df.columns = _df.iloc[7]
     _df = _df[_df["CRN"].notna()]
     _df = _df[_df.CRN.apply(lambda x: x.isnumeric())]
@@ -76,7 +83,7 @@ def tidy_data(file_contents):
     _df[["Credit", "Max", "Enrolled", "WCap", "WList"]] = _df[
         ["Credit", "Max", "Enrolled", "WCap", "WList"]
     ].apply(pd.to_numeric, errors="coerce")
-    return _df
+    return _df, term_code
 
 
 # convert time format from 12hr to 24hr and account for TBA times
@@ -134,10 +141,15 @@ def tidy_csv(file_contents):
     _list = []
     for line in file_contents:
         _list.append(line.replace(",", ""))
-    _list = _list[4:]
+    _list = _list[6:]
+
     _file = "".join(_list)
+
+    # read the report Term and Year from file
+    term_code = _file[8:14]
+
     _df = pd.read_fwf(io.StringIO(_file), colspecs=_LINE_PATTERN)
-    _df.columns = _df.iloc[3]
+    _df.columns = _df.iloc[1]
     _df = _df[_df["CRN"].notna()]
     _df = _df[_df.CRN.apply(lambda x: x.isnumeric())]
     _df.rename(
@@ -163,15 +175,23 @@ def tidy_csv(file_contents):
     # convert time from 12hr to 24hr
     _df["Time"] = _df["Time"].apply(lambda x: convertAMPMtime(x))
 
-    return _df
+    return _df, term_code
 
 
 # Data wrapper class
 class EnrollmentData:
     """ Encapsulate a dataframe with helpful accessors for summary statistics and graphs """
 
-    def __init__(self, df):
-        self.df = df
+    def __init__(self, df, term_code):
+        self.df = df[df["S"] == "A"]
+        self.term_code = term_code
+        if self.term_code[-2:] == "30":
+            self.report_term = "Spring " + self.term_code[0:4]
+        elif self.term_code[-2:] == "40":
+            self.report_term = "Summer " + self.term_code[0:4]
+        if self.term_code[-2:] == "50":
+            self.report_term = "Fall " + self.term_code[0:4]
+
         # Helper columns
         self.df["CHP"] = self.df["Credit"] * self.df["Enrolled"]
         self.df["Course"] = self.df["Subject"] + self.df["Number"]
@@ -346,7 +366,7 @@ class EnrollmentData:
                 color="Ratio",
                 color_continuous_scale=px.colors.sequential.RdBu,
             )
-            .update_xaxes(categoryorder="total descending")
+            .update_xaxes(categoryorder="category descending")
             .update_layout(showlegend=False)
         )
 
@@ -419,20 +439,21 @@ class EnrollmentData:
 
     # Output Excel files
     def to_excel(self):
+        _df = self.df.copy()
         xlsx_io = io.BytesIO()
         writer = pd.ExcelWriter(
             xlsx_io, engine="xlsxwriter", options={"strings_to_numbers": True}
         )
-        self.df["Section"] = self.df["Section"].apply(lambda x: '="{x:s}"'.format(x=x))
-        self.df["Number"] = self.df["Number"].apply(lambda x: '="{x:s}"'.format(x=x))
-        self.df.to_excel(writer, sheet_name="Enrollment", index=False)
+        _df["Section"] = _df["Section"].apply(lambda x: '="{x:s}"'.format(x=x))
+        _df["Number"] = _df["Number"].apply(lambda x: '="{x:s}"'.format(x=x))
+        _df.to_excel(writer, sheet_name="Enrollment", index=False)
 
         workbook = writer.book
         worksheet = writer.sheets["Enrollment"]
 
         bold = workbook.add_format({"bold": True})
 
-        rowCount = len(self.df.index)
+        rowCount = len(_df.index)
 
         worksheet.freeze_panes(1, 0)
         worksheet.set_column("A:A", 6.5)
@@ -514,21 +535,21 @@ class EnrollmentData:
         worksheet2.write(0, 0, "Summary Statistics", bold)
         worksheet2.write(1, 0, "Average Fill Rate")
         try:
-            worksheet2.write(1, 1, round(self.df["Ratio"].mean(), 2))
+            worksheet2.write(1, 1, round(_df["Ratio"].mean(), 2))
         except (KeyError, TypeError):
             worksheet2.write(1, 1, 0.0)
 
         worksheet2.write(3, 0, "Total Sections")
-        worksheet2.write(3, 1, self.df["CRN"].nunique())
+        worksheet2.write(3, 1, _df["CRN"].nunique())
 
         worksheet2.write(5, 0, "Average Enrollment per Section")
         try:
-            worksheet2.write(5, 1, round(self.df["Enrolled"].mean(), 2))
+            worksheet2.write(5, 1, round(_df["Enrolled"].mean(), 2))
         except (KeyError, TypeError):
             worksheet2.write(5, 1, 0.0)
 
         worksheet2.write(7, 0, "Credit Hour Production")
-        worksheet2.write(7, 1, self.df["CHP"].sum())
+        worksheet2.write(7, 1, _df["CHP"].sum())
 
         worksheet2.write(9, 0, "Percent F2F Classes")
         try:
@@ -540,7 +561,7 @@ class EnrollmentData:
         chart = workbook.add_chart({"type": "column", "subtype": "stacked"})
 
         chart_data = (
-            self.df.groupby("Course")
+            _df.groupby("Course")
             .agg({"Enrolled": "sum", "Max": "sum"})
             .sort_values("Course", ascending=True)
         )
@@ -646,7 +667,9 @@ app.layout = html.Div(
                         html.Div(
                             [
                                 html.H3(
-                                    "SWRCGSR Enrollment", style={"margin-bottom": "0px"}
+                                    "SWRCGSR Enrollment",
+                                    id="report-semester",
+                                    style={"margin-bottom": "0px"},
                                 ),
                                 html.H5(
                                     "Statistics and Graphs", style={"margin-top": "0px"}
@@ -700,9 +723,9 @@ def parse_contents(contents, filename, date):
         if "txt" in filename:
             # Assume that the user uploaded a banner fixed width file with .txt extension
             # Load data
-            df = tidy_data(io.StringIO(decoded.decode("utf-8")))
+            df, term_code = tidy_txt(io.StringIO(decoded.decode("utf-8")))
         elif "csv" in filename:
-            df = tidy_csv(io.StringIO(decoded.decode("utf-8")))
+            df, term_code = tidy_csv(io.StringIO(decoded.decode("utf-8")))
         # elif "xls" in filename:
         #     # Assume that the user uploaded an excel file
         #     df = pd.read_excel(io.BytesIO(decoded))
@@ -710,7 +733,7 @@ def parse_contents(contents, filename, date):
         print(e)
         return html.Div(["There was an error processing this file."])
 
-    data = EnrollmentData(df)
+    data = EnrollmentData(df, term_code)
 
     return html.Div(
         [
@@ -736,7 +759,9 @@ def parse_contents(contents, filename, date):
                                     html.A(
                                         "Download Excel Data",
                                         id="excel-download",
-                                        download="data.xlsx",
+                                        download="SWRCGSR_{0}.xlsx".format(
+                                            data.term_code
+                                        ),
                                         href=data.to_excel(),
                                         target="_blank",
                                     ),
@@ -881,7 +906,7 @@ def parse_contents(contents, filename, date):
                     html.Div(
                         [
                             html.H6(
-                                "Avg Enrollment by Instructor",
+                                "Avg Enrl by Instructor",
                                 id="avg_enrollment_by_instructor_id",
                             ),
                             dash_table.DataTable(
@@ -963,6 +988,74 @@ def parse_contents(contents, filename, date):
                         ],
                         className="pretty_container six columns",
                     ),
+                ],
+                className="row flex-display",
+            ),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            dash_table.DataTable(
+                                id="datatable-filtering",
+                                columns=[
+                                    {"name": "CRN", "id": "CRN", "type": "numeric"},
+                                    {"name": "Course", "id": "Course", "type": "text"},
+                                    {
+                                        "name": "Section",
+                                        "id": "Section",
+                                        "type": "text",
+                                    },
+                                    {"name": "Credit", "id": "Credit", "type": "text"},
+                                    {"name": "Status", "id": "S", "type": "text"},
+                                    {"name": "Days", "id": "Days", "type": "text"},
+                                    {"name": "Time", "id": "Time", "type": "text"},
+                                    {"name": "Max", "id": "Max", "type": "numeric"},
+                                    {
+                                        "name": "Enrolled",
+                                        "id": "Enrolled",
+                                        "type": "numeric",
+                                    },
+                                    {"name": "CHP", "id": "CHP", "type": "numeric"},
+                                    {
+                                        "name": "Ratio",
+                                        "id": "Ratio",
+                                        "type": "numeric",
+                                        "format": FormatTemplate.percentage(1),
+                                    },
+                                    {
+                                        "name": "Instructor",
+                                        "id": "Instructor",
+                                        "type": "text",
+                                    },
+                                ],
+                                data=data.df.to_dict("records"),
+                                # editable=True,
+                                page_action="native",
+                                filter_action="native",
+                                fixed_rows={"headers": True, "data": 0},
+                                style_table={
+                                    "overflowX": "scroll",
+                                    "maxHeight": "600px",
+                                },
+                                style_cell_conditional=[
+                                    {"if": {"column_id": c}, "textAlign": "left"}
+                                    for c in ["Date", "Region"]
+                                ],
+                                style_data_conditional=[
+                                    {
+                                        "if": {"row_index": "odd"},
+                                        "backgroundColor": "rgb(248, 248, 248)",
+                                    }
+                                ],
+                                style_header={
+                                    "backgroundColor": "rgb(230, 230, 230)",
+                                    "fontWeight": "bold",
+                                },
+                                style_cell={"font-family": "sans-serif"},
+                            )
+                        ],
+                        className="pretty_container twelve columns",
+                    )
                 ],
                 className="row flex-display",
             ),
