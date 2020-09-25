@@ -14,7 +14,10 @@ import base64
 import io
 from dash.dependencies import Input, Output, State
 
+# Include pretty graph formatting
 pio.templates.default = "plotly_white"
+# expects 'assets' folder with styling CSS and resizing js
+# CSS from: https://github.com/plotly/dash-sample-apps/tree/master/apps/dashr-oil-and-gas/assets
 
 # Initialize server
 app = dash.Dash(
@@ -86,8 +89,14 @@ def tidy_txt(file_contents):
     return _df, term_code
 
 
-# convert time format from 12hr to 24hr and account for TBA times
 def convertAMPMtime(timeslot):
+    """Convert time format from 12hr to 24hr and account for TBA times.
+
+    Args:
+        timeslot: dataframe cell contents.
+
+    Returns:
+        reformmated dataframe cell contents."""
 
     try:
         starthour = int(timeslot[0:2])
@@ -183,7 +192,7 @@ class EnrollmentData:
     """ Encapsulate a dataframe with helpful accessors for summary statistics and graphs """
 
     def __init__(self, df, term_code):
-        self.df = df[df["S"] == "A"]
+        self.df = df[df["S"] == "A"]  # keep only active classes
         self.term_code = term_code
         if self.term_code[-2:] == "30":
             self.report_term = "Spring " + self.term_code[0:4]
@@ -649,22 +658,22 @@ class EnrollmentData:
 
 
 # Create app layout
-app.layout = html.Div(
+app.layout = html.Div(  # div-lvl-1
     [
-        dcc.Store(id="aggregate_data"),
+        dcc.Store(id="aggregate_data"),  # div-lvl-2
         # empty Div to trigger javascript file for graph resizing
-        html.Div(id="output-clientside"),
-        html.Div(
+        html.Div(id="output-clientside"),  # div-lvl-2
+        html.Div(  # div-lvl-2
             [
-                html.Div(
+                html.Div(  # div-lvl-2
                     [
                         # Blank padding
                     ],
                     className="one-third column",
                 ),
-                html.Div(
+                html.Div(  # div-lvl-2
                     [
-                        html.Div(
+                        html.Div(  # div-lvl-3
                             [
                                 html.H3(
                                     "SWRCGSR Enrollment",
@@ -680,9 +689,9 @@ app.layout = html.Div(
                     className="one-half column",
                     id="title",
                 ),
-                html.Div(
+                html.Div(  # div-lvl-2
                     [
-                        dcc.Upload(
+                        dcc.Upload(  # div-lvl-3
                             id="upload-data",
                             children=html.Div(
                                 ["Drag and Drop or ", html.A("Select Files")]
@@ -708,7 +717,7 @@ app.layout = html.Div(
             className="row flex-display",
             style={"margin-bottom": "25px"},
         ),
-        html.Div(id="output-data-upload"),  # where data gets inserted
+        html.Div(id="output-data-upload"),  # div-lvl-2, where data gets inserted
     ],
     id="mainContainer",
     style={"display": "flex", "flex-direction": "column"},
@@ -716,6 +725,17 @@ app.layout = html.Div(
 
 
 def parse_contents(contents, filename, date):
+    """Assess filetype of uploaded file and pass to appropriate processing functions,
+    then return html of enrollment statistics.
+
+    Args:
+        contents: the encoded file contents
+        filename: the filename
+        date: the timestamp
+
+    Returns:
+        html Div element containing statistics and dash graphs."""
+
     content_type, content_string = contents.split(",")
 
     decoded = base64.b64decode(content_string)
@@ -725,9 +745,10 @@ def parse_contents(contents, filename, date):
             # Load data
             df, term_code = tidy_txt(io.StringIO(decoded.decode("utf-8")))
         elif "csv" in filename:
+            # Assume the user uploaded a banner Shift-F1 export quasi-csv file with .csv extension
             df, term_code = tidy_csv(io.StringIO(decoded.decode("utf-8")))
-        # elif "xls" in filename:
-        #     # Assume that the user uploaded an excel file
+        # TODO: elif "xls" in filename:
+        #     # Assume that the user uploaded a pre-processed excel file from this program
         #     df = pd.read_excel(io.BytesIO(decoded))
     except Exception as e:
         print(e)
@@ -735,19 +756,19 @@ def parse_contents(contents, filename, date):
 
     data = EnrollmentData(df, term_code)
 
-    return html.Div(
+    return html.Div(  # div-lvl-3 is outermost of return
         [
-            html.Div(
+            html.Div(  # div-lvl-4, first row: download link
                 [
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             # Blank padding
                         ],
                         className="one-third column",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
-                            html.Div(
+                            html.Div(  # div-lvl-6
                                 [
                                     html.H5(
                                         "Excel Formatted Output",
@@ -772,7 +793,7 @@ def parse_contents(contents, filename, date):
                         className="one-half column",
                         id="download",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             # Blank padding
                         ],
@@ -783,9 +804,9 @@ def parse_contents(contents, filename, date):
                 className="row flex-display",
                 style={"margin-bottom": "25px"},
             ),
-            html.Div(
+            html.Div(  # div-lvl-4, second row: statistics
                 [
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(
                                 f"{data.total_sections()}", id="total_sections_text"
@@ -795,7 +816,7 @@ def parse_contents(contents, filename, date):
                         id="sections",
                         className="mini_container",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(
                                 f"{data.avg_enrollment()}", id="avg_enrollment_text"
@@ -805,7 +826,7 @@ def parse_contents(contents, filename, date):
                         id="avg_enrollment",
                         className="mini_container",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(f"{data.total_CHP()}", id="total_CHP_text"),
                             html.P("Total Credit Hour Production"),
@@ -813,7 +834,7 @@ def parse_contents(contents, filename, date):
                         id="total_CHP",
                         className="mini_container",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(f"{data.avg_fill_rate()}", id="avg_fill_rate_text"),
                             html.P("Average Fill Rate"),
@@ -821,7 +842,7 @@ def parse_contents(contents, filename, date):
                         id="avg_fill_rate",
                         className="mini_container",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(
                                 f"{data.avg_enrollment_by_instructor()}",
@@ -832,7 +853,7 @@ def parse_contents(contents, filename, date):
                         id="avg_enrollment_by_instructor",
                         className="mini_container",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(
                                 f"{data.average_waitlist()}", id="avg_waitlist_text"
@@ -842,7 +863,7 @@ def parse_contents(contents, filename, date):
                         id="avg_waitlist",
                         className="mini_container",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(f"{data.percent_f2f()}", id="percent_f2f_text"),
                             html.P("Percent F2F Classes"),
@@ -853,13 +874,13 @@ def parse_contents(contents, filename, date):
                 ],
                 className="row container-display",
             ),
-            html.Div(
+            html.Div(  # div-lvl-4, third row: graphs
                 [
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [dcc.Graph(figure=data.graph_ratio_crn(), id="main_graph")],
                         className="pretty_container six columns",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             dcc.Graph(
                                 figure=data.graph_enrollment_by_instructor(),
@@ -871,15 +892,15 @@ def parse_contents(contents, filename, date):
                 ],
                 className="row flex-display",
             ),
-            html.Div(
+            html.Div(  # div-lvl-4, fourth row: lists and graphs
                 [
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(
                                 "Enrollment by Instructor",
                                 id="enrollment_by_instructor_id",
                             ),
-                            dash_table.DataTable(
+                            dash_table.DataTable(  # div-lvl-6
                                 id="enrollment_data_table",
                                 columns=[
                                     {"name": i, "id": i}
@@ -903,13 +924,13 @@ def parse_contents(contents, filename, date):
                         ],
                         className="pretty_container three columns",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6(
                                 "Avg Enrl by Instructor",
                                 id="avg_enrollment_by_instructor_id",
                             ),
-                            dash_table.DataTable(
+                            dash_table.DataTable(  # div-lvl-6
                                 id="avg_enrollment_data_table",
                                 columns=[
                                     {"name": i, "id": i}
@@ -935,10 +956,10 @@ def parse_contents(contents, filename, date):
                         ],
                         className="pretty_container three columns",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
                             html.H6("CHP by Course", id="chp_by_course_id"),
-                            dash_table.DataTable(
+                            dash_table.DataTable(  # div-lvl-6
                                 id="chp_by_course_data_table",
                                 columns=[
                                     {"name": i, "id": i}
@@ -962,26 +983,26 @@ def parse_contents(contents, filename, date):
                         ],
                         className="pretty_container three columns",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [dcc.Graph(figure=data.graph_f2f(), id="graph_f2f")],
                         className="pretty_container five columns",
                     ),
                 ],
                 className="row flex-display",
             ),
-            html.Div(
+            html.Div(  # div-lvl-4, sixth row: graphs
                 [
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
-                            dcc.Graph(
+                            dcc.Graph(  # div-lvl-6
                                 figure=data.graph_ratio_course(), id="main_graph_2"
                             )
                         ],
                         className="pretty_container six columns",
                     ),
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
-                            dcc.Graph(
+                            dcc.Graph(  # div-lvl-6
                                 figure=data.graph_chp_by_course(),
                                 id="individual_graph_2",
                             )
@@ -991,11 +1012,11 @@ def parse_contents(contents, filename, date):
                 ],
                 className="row flex-display",
             ),
-            html.Div(
+            html.Div(  # div-lvl-4, seventh row: datatable
                 [
-                    html.Div(
+                    html.Div(  # div-lvl-5
                         [
-                            dash_table.DataTable(
+                            dash_table.DataTable(  # div-lvl-6
                                 id="datatable-filtering",
                                 columns=[
                                     {"name": "CRN", "id": "CRN", "type": "numeric"},
@@ -1069,6 +1090,8 @@ def parse_contents(contents, filename, date):
     [State("upload-data", "filename"), State("upload-data", "last_modified")],
 )
 def update_output(list_of_contents, list_of_names, list_of_dates):
+    """When files are selected, call parse-contents and return the new html elements."""
+
     if list_of_contents is not None:
         children = [
             parse_contents(c, n, d)
