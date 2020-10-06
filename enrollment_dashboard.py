@@ -29,6 +29,30 @@ app.title = "Enrollment Report Statistics"
 
 
 # Helper Functions
+def convertAMPMtime(timeslot):
+    """Convert time format from 12hr to 24hr and account for TBA times.
+
+    Args:
+        timeslot: dataframe cell contents.
+
+    Returns:
+        reformmated dataframe cell contents."""
+
+    try:
+        starthour = int(timeslot[0:2])
+        endhour = int(timeslot[5:7])
+        if timeslot[-2:] == "PM":
+            endhour = endhour + 12 if endhour < 12 else endhour
+            starthour = starthour + 12 if starthour + 12 <= endhour else starthour
+        timeslot = "{:s}:{:s}-{:s}:{:s}".format(
+            str(starthour).zfill(2), timeslot[2:4], str(endhour).zfill(2), timeslot[7:9]
+        )
+    except ValueError:  # catch the TBA times
+        pass
+
+    return timeslot
+
+
 def tidy_txt(file_contents):
     """Take in SWRCGSR output and format into pandas-compatible format.
 
@@ -86,35 +110,12 @@ def tidy_txt(file_contents):
     _df[["Credit", "Max", "Enrolled", "WCap", "WList"]] = _df[
         ["Credit", "Max", "Enrolled", "WCap", "WList"]
     ].apply(pd.to_numeric, errors="coerce")
+
     return _df, term_code
 
 
-def convertAMPMtime(timeslot):
-    """Convert time format from 12hr to 24hr and account for TBA times.
-
-    Args:
-        timeslot: dataframe cell contents.
-
-    Returns:
-        reformmated dataframe cell contents."""
-
-    try:
-        starthour = int(timeslot[0:2])
-        endhour = int(timeslot[5:7])
-        if timeslot[-2:] == "PM":
-            endhour = endhour + 12 if endhour < 12 else endhour
-            starthour = starthour + 12 if starthour + 12 <= endhour else starthour
-        timeslot = "{:s}:{:s}-{:s}:{:s}".format(
-            str(starthour).zfill(2), timeslot[2:4], str(endhour).zfill(2), timeslot[7:9]
-        )
-    except ValueError:  # catch the TBA times
-        pass
-
-    return timeslot
-
-
 def tidy_csv(file_contents):
-    """Take in SWRCGSR output and format into pandas-compatible format.
+    """Converts the CSV format to the TXT format from Banner
 
     Args:
         file_contents:
@@ -124,67 +125,20 @@ def tidy_csv(file_contents):
         Dataframe.
     """
 
-    _LINE_PATTERN = [
-        (0, 5),
-        (5, 10),
-        (10, 16),
-        (16, 20),
-        (20, 22),
-        (22, 26),
-        (26, 28),
-        (28, 44),
-        (44, 51),
-        (51, 56),
-        (56, 61),
-        (61, 66),
-        (66, 71),
-        (71, 79),
-        (79, 91),
-        (91, 99),
-        (99, 104),
-        (104, 109),
-        (109, 121),
-        (121, 140),
-    ]
+    _file = file_contents.read()
+    _file = _file.replace("\r", "")
 
     _list = []
-    for line in file_contents:
-        _list.append(line.replace(",", ""))
-    _list = _list[6:]
+    line = ""
+    for char in _file:
+        if char == "\n":
+            line = line.replace('"', "")
+            _list.append(line[:-1])
+            line = ""
+        else:
+            line += char
 
-    _file = "".join(_list)
-
-    # read the report Term and Year from file
-    term_code = _file[8:14]
-
-    _df = pd.read_fwf(io.StringIO(_file), colspecs=_LINE_PATTERN)
-    _df.columns = _df.iloc[1]
-    _df = _df[_df["CRN"].notna()]
-    _df = _df[_df.CRN.apply(lambda x: x.isnumeric())]
-    _df.rename(
-        columns={
-            "Subj": "Subject",
-            "Nmbr": "Number",
-            "Sec": "Section",
-            "Cam": "Campus",
-            "Enrl": "Enrolled",
-            "WLst": "WList",
-            "%Ful": "Full",
-        },
-        inplace=True,
-    )
-    _df[["Credit", "Max", "Enrolled", "WCap", "WList"]] = _df[
-        ["Credit", "Max", "Enrolled", "WCap", "WList"]
-    ].apply(pd.to_numeric, errors="coerce")
-
-    # remove leading and trailing quotation marks and comma
-    _df["Subject"] = _df["Subject"].str.lstrip('"')
-    _df["Instructor"] = _df["Instructor"].str.rstrip('",')
-
-    # convert time from 12hr to 24hr
-    _df["Time"] = _df["Time"].apply(lambda x: convertAMPMtime(x))
-
-    return _df, term_code
+    return tidy_txt(io.StringIO("\n".join(_list)))
 
 
 # Data wrapper class
@@ -192,7 +146,23 @@ class EnrollmentData:
     """ Encapsulate a dataframe with helpful accessors for summary statistics and graphs """
 
     def __init__(self, df, term_code):
-        self.df = df[df["S"] == "A"]  # keep only active classes
+
+        # copy in the dataframe
+        self.df = df
+
+        # fill Nan with zeros
+        self.df["Enrolled"] = self.df["Enrolled"].fillna(0)
+        self.df["Rcap"] = self.df["Rcap"].fillna(0)
+        self.df["Full"] = self.df["Full"].fillna(0)
+
+        # Helper columns
+        self.df["CHP"] = self.df["Credit"] * self.df["Enrolled"]
+        self.df["Course"] = self.df["Subject"] + self.df["Number"]
+        self.df["Ratio"] = self.df["Enrolled"] / self.df["Max"]
+
+        self.df_raw = df  # keep a copy of the all classes
+        self.df = self.df[self.df["S"] == "A"]  # keep only active classes
+
         self.term_code = term_code
         if self.term_code[-2:] == "30":
             self.report_term = "Spring " + self.term_code[0:4]
@@ -200,11 +170,6 @@ class EnrollmentData:
             self.report_term = "Summer " + self.term_code[0:4]
         if self.term_code[-2:] == "50":
             self.report_term = "Fall " + self.term_code[0:4]
-
-        # Helper columns
-        self.df["CHP"] = self.df["Credit"] * self.df["Enrolled"]
-        self.df["Course"] = self.df["Subject"] + self.df["Number"]
-        self.df["Ratio"] = self.df["Enrolled"] / self.df["Max"]
 
     # Calculate Stats and Graphs
     def total_sections(self):
@@ -327,7 +292,11 @@ class EnrollmentData:
     def percent_f2f(self):
         _a = self.f2f_df2()[self.f2f_df2()["Loc"] == "F2F"].CHP.values[0]
         _b = self.f2f_df2()[self.f2f_df2()["Loc"] == "Online"].CHP.values[0]
-        return round(_a / (_a + _b), 2)
+        _c = _a + _b
+        if _c != 0:
+            return round(_a / (_a + _b), 2)
+        else:
+            return 0.0
 
     def full_f2f_df(self):
         full_f2f_df = self.df.groupby("Loc").sum()
@@ -771,7 +740,9 @@ def parse_contents(contents, filename, date):
                             html.Div(  # div-lvl-6
                                 [
                                     html.H5(
-                                        "Excel Formatted Output",
+                                        "Excel Formatted Output for {0}".format(
+                                            data.report_term
+                                        ),
                                         style={
                                             "margin-bottom": "0px",
                                             "text-align": "center",
@@ -1030,6 +1001,8 @@ def parse_contents(contents, filename, date):
                                     {"name": "Status", "id": "S", "type": "text"},
                                     {"name": "Days", "id": "Days", "type": "text"},
                                     {"name": "Time", "id": "Time", "type": "text"},
+                                    {"name": "Loc", "id": "Loc", "type": "text"},
+                                    {"name": "Campus", "id": "Campus", "type": "text"},
                                     {"name": "Max", "id": "Max", "type": "numeric"},
                                     {
                                         "name": "Enrolled",
@@ -1049,7 +1022,7 @@ def parse_contents(contents, filename, date):
                                         "type": "text",
                                     },
                                 ],
-                                data=data.df.to_dict("records"),
+                                data=data.df_raw.to_dict("records"),
                                 # editable=True,
                                 page_action="native",
                                 filter_action="native",
