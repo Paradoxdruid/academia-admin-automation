@@ -1,7 +1,7 @@
 # academia-admin-automation
  Miscellaneous scripts to automate administrative tasks in academia.
 
-![gpl3.0](https://img.shields.io/github/license/Paradoxdruid/academia-admin-automation.svg "GPL 3.0 Licensed")  [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/Paradoxdruid/academia-admin-automation.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/Paradoxdruid/academia-admin-automation/context:python)  [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black) 
+![GitHub](https://img.shields.io/github/license/Paradoxdruid/academia-admin-automation?color=success)  ![LGTM Grade](https://img.shields.io/lgtm/grade/python/github/Paradoxdruid/academia-admin-automation)  [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black) 
 
 
 ## Current Scripts
