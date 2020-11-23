@@ -122,3 +122,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 test_process_enrollment.py
+test_enrollment_dashboard.py
+Untitled7.ipynb
