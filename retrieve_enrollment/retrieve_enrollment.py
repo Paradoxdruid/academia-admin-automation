@@ -129,9 +129,6 @@ def processEnrollment(filename):
     # Send it to the output function
     write_and_format(newfile, filename[:-3] + "xlsx")
 
-    # Finish
-    return
-
 
 def write_and_format(input_list, output_name):
     """Take in a list of lists for output data and write an xlsx file.
@@ -245,7 +242,6 @@ def write_and_format(input_list, output_name):
 
     # Close it out
     workbook.close()
-    return
 
 
 def text_parser(filepath, separator="="):

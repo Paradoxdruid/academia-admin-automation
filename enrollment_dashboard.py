@@ -295,13 +295,11 @@ class EnrollmentData:
         _c = _a + _b
         if _c != 0:
             return round(_a / (_a + _b), 2)
-        else:
-            return 0.0
+        return 0.0
 
     def full_f2f_df(self):
         full_f2f_df = self.df.groupby("Loc").sum()
         full_f2f_df.reset_index(inplace=True)
-        full_f2f_df
         full_f2f_df["Online"] = np.where(
             full_f2f_df["Loc"].isin(["ASYN  T", "SYNC  T", "ONLI  T"]), "Online", "F2F"
         )
