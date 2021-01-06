@@ -533,7 +533,7 @@ def parse_contents(contents, filename, date):
         print(e)
         return html.Div(["There was an error processing this file."])
 
-    df["Time"] = df["Time"].apply(lambda x: convertAMPMtime(x))
+    df["Time"] = df["Time"].apply(convertAMPMtime)
 
     # fill Nan with zeros
     df["Enrolled"] = df["Enrolled"].fillna(0)
@@ -1022,8 +1022,7 @@ def update_stats(data):
             round(df.groupby("Instructor").agg({"Enrolled": "sum"}).values.mean(), 2),
             round(df["WList"].mean(), 2),
         ]
-    else:
-        return ["0", "0", "0", "0.00", "0.00", "0.00", "0.00"]
+    return ["0", "0", "0", "0.00", "0.00", "0.00", "0.00"]
 
 
 @app.callback(
@@ -1102,8 +1101,7 @@ def max_v_enrl_by_crn(data, fig):
                 barmode="overlay",
             )
         )
-    else:
-        return fig
+    return fig
 
 
 @app.callback(
@@ -1140,8 +1138,7 @@ def max_v_enrl_by_course(data, fig):
             yaxis_title="Enrolled",
             barmode="overlay",
         )
-    else:
-        return fig
+    return fig
 
 
 @app.callback(
@@ -1204,8 +1201,7 @@ def graph_f2f(data, toggle, fig):
                 ),
             ],
         )
-    else:
-        return fig
+    return fig
 
 
 @app.callback(
@@ -1235,8 +1231,7 @@ def graph_enrollment_by_instructor(data, fig):
             .update_xaxes(categoryorder="category ascending")
             .update_layout(showlegend=False, xaxis_type="category")
         )
-    else:
-        return fig
+    return fig
 
 
 @app.callback(
@@ -1259,8 +1254,7 @@ def chp_by_course(data, fig):
             .update_xaxes(categoryorder="category descending")
             .update_layout(showlegend=False)
         )
-    else:
-        return fig
+    return fig
 
 
 @app.callback(
@@ -1329,8 +1323,7 @@ def enrl_by_instructor(data):
             ),
         ]
         return children
-    else:
-        return []
+    return []
 
 
 @app.callback(
@@ -1401,8 +1394,7 @@ def chp_by_course(data):
             ),
         ]
         return children
-    else:
-        return []
+    return []
 
 
 # Main
