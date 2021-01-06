@@ -124,3 +124,6 @@ dmypy.json
 test_process_enrollment.py
 test_enrollment_dashboard.py
 Untitled7.ipynb
+
+# Ignore assets folder
+assets/
