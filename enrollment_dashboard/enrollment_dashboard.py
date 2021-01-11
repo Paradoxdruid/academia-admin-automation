@@ -1326,7 +1326,7 @@ def enrl_by_instructor(data):
     return []
 
 
-@app.callback(
+@app.callback(  # noqa
     Output("chp_by_course", "children"),
     Input("datatable-filtering", "derived_viewport_data"),
 )

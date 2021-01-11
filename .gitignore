@@ -127,3 +127,6 @@ Untitled7.ipynb
 
 # Ignore assets folder
 assets/
+
+# OSX stupidity
+.DS_store

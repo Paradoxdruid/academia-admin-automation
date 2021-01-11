@@ -6,19 +6,19 @@
 
 ## Current Scripts
 
-1. [enrollment_dashboard.py](#enrollment_dashboardpy)
-2. [process_enrollment.py](#process_enrollmentpy)
-3. [retrieve_enrollment.py](#retrieve_enrollmentpy) 
+1. [enrollment_dashboard](#enrollment_dashboard)
+2. [process_enrollment](#process_enrollment)
+3. [retrieve_enrollment](#retrieve_enrollment) 
 
-### enrollment_dashboard.py
+### enrollment_dashboard
 
-![Image of enrollment dashboard web app](enroll_screenshot.png)
+![Image of enrollment dashboard web app](images/enroll_screenshot.png)
 
 `enrollment_dashboard.py` is a [Dash](https://plotly.com/dash/) webapp to allow user submission of SWRCGSR data, providing a report of summary statistics and graphs as output.
 
 The webapp is live at [https://enroll.bonhamcode.com](https://enroll.bonhamcode.com).
 
-### process_enrollment.py
+### process_enrollment
 
 `process_enrollment.py` is a CLI to process pre-downloaded output of Banner systems enrollment reports (**SWRCGSR**) into editable .xlsx files.
 
@@ -28,7 +28,7 @@ The webapp is live at [https://enroll.bonhamcode.com](https://enroll.bonhamcode.
 process_enrollment.py Name_Of_Downloaded_SWRCGSR_File.txt
 ```
 
-### retrieve_enrollment.py
+### retrieve_enrollment
 
 `retrieve_enrollment.py` implements a [Selenium](https://pypi.org/project/selenium/)-based approach to automatically log into Banner 9 systems, download an enrollment report (**SWRCGSR**), and re-format it into an editable .xlsx file.
 
