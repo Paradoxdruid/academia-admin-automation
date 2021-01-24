@@ -1,8 +1,12 @@
 # academia-admin-automation
- Miscellaneous scripts to automate administrative tasks in academia.
-
+ 
 ![GitHub](https://img.shields.io/github/license/Paradoxdruid/academia-admin-automation?color=success)  ![LGTM Grade](https://img.shields.io/lgtm/grade/python/github/Paradoxdruid/academia-admin-automation)  [![CodeFactor](https://www.codefactor.io/repository/github/paradoxdruid/academia-admin-automation/badge)](https://www.codefactor.io/repository/github/paradoxdruid/academia-admin-automation) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black) 
 
+<p align="right">
+  ⭐ &nbsp;&nbsp;the project to show your appreciation. :arrow_upper_right:
+</p>
+
+Miscellaneous scripts to automate administrative tasks in academia.
 
 ## Current Scripts
 
