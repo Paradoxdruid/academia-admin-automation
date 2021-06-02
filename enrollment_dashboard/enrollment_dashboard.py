@@ -18,7 +18,8 @@ import datetime
 # Include pretty graph formatting
 pio.templates.default = "plotly_white"
 # expects 'assets' folder with styling CSS and resizing js
-# CSS from: https://github.com/plotly/dash-sample-apps/tree/master/apps/dashr-oil-and-gas/assets
+# CSS from:
+# https://github.com/plotly/dash-sample-apps/tree/master/apps/dashr-oil-and-gas/assets
 
 # Initialize server
 app = dash.Dash(
@@ -453,9 +454,9 @@ def to_excel(df, report_term):
 
     # chart.set_title({"name": "Enrollment by Course"})
     # chart.set_legend({"none": True})
-    # chart.set_y_axis({"name": "Students", "min": 0, "max": chart_data.max().max() + 50})
+    # chart.set_y_axis({"name": "Students", "min": 0, "max": chart_data.max().max()+50})
 
-    # chart.set_y2_axis({"visible": False, "min": 0, "max": chart_data.max().max() + 50})
+    # chart.set_y2_axis({"visible": False, "min": 0, "max": chart_data.max().max()+50})
 
     # worksheet2.insert_chart("D2", chart)
 
@@ -519,15 +520,15 @@ def parse_contents(contents, filename, date):
         class EnrollmentData containing data and attributes
     """
 
-    content_type, content_string = contents.split(",")
+    _, content_string = contents.split(",")
 
     decoded = base64.b64decode(content_string)
     try:
         if "txt" in filename:
-            # Assume that the user uploaded a banner fixed width file with .txt extension
+            # Assume that the user uploaded a banner fixed width file with .txt ext
             df, term_code, data_date = tidy_txt(io.StringIO(decoded.decode("utf-8")))
         elif "csv" in filename:
-            # Assume the user uploaded a banner Shift-F1 export quasi-csv file with .csv extension
+            # Assume upload pf a banner Shift-F1 export quasi-csv file with .csv ext
             df, term_code, data_date = tidy_csv(io.StringIO(decoded.decode("utf-8")))
     except Exception as e:
         print(e)

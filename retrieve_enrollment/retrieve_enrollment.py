@@ -13,7 +13,7 @@ import csv
 import xlsxwriter
 from itertools import cycle
 
-# This is the both the headers and the associated line pattern of SWRCGSR output in Banner 9
+# This is the both the headers and the assc. line pattern of SWRCGSR output in Banner 9
 HEADER_ROW = {
     "Subject": 5,
     "Number": 5,
