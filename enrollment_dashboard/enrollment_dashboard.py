@@ -66,7 +66,10 @@ PREDEFINED_QUERY_OTIONS = [
     },
 ]
 
-LOW_EN = "({Enrolled} < 10 && {Max} >= 20 && {S} contains A) || ({Enrolled} < 6 && {S} contains A)"
+LOW_EN = (
+    "({Enrolled} < 10 && {Max} >= 20 && {S} contains A)"
+    "|| ({Enrolled} < 6 && {S} contains A)"
+)
 
 df = pd.DataFrame()
 
@@ -572,6 +575,28 @@ def parse_contents(contents, filename, date):
         ),
     }
 
+    # custom queries buttons
+    custom_queries_buttons = html.Label(
+        [
+            "Custom Queries:",
+            dcc.RadioItems(
+                id="filter-query-read-write",
+                options=[
+                    {
+                        "label": "Read filter_query",
+                        "value": "read",
+                    },
+                    {
+                        "label": "Write to filter_query",
+                        "value": "write",
+                    },
+                ],
+                className="dcc_control",
+                value="read",
+            ),
+        ]
+    )
+
     html_layout = [
         html.Div(
             [
@@ -770,26 +795,7 @@ def parse_contents(contents, filename, date):
                                 html.Br(),
                                 html.Div(
                                     [
-                                        html.Label(
-                                            [
-                                                "Custom Queries:",
-                                                dcc.RadioItems(
-                                                    id="filter-query-read-write",
-                                                    options=[
-                                                        {
-                                                            "label": "Read filter_query",
-                                                            "value": "read",
-                                                        },
-                                                        {
-                                                            "label": "Write to filter_query",
-                                                            "value": "write",
-                                                        },
-                                                    ],
-                                                    className="dcc_control",
-                                                    value="read",
-                                                ),
-                                            ]
-                                        ),
+                                        custom_queries_buttons,
                                     ],
                                     style={
                                         "margin-left": "5px",
@@ -1331,7 +1337,7 @@ def enrl_by_instructor(data):
     Output("chp_by_course", "children"),
     Input("datatable-filtering", "derived_viewport_data"),
 )
-def chp_by_course(data):
+def chp_by_course2(data):
     if data:
         df = pd.DataFrame(data)
         _df = (
