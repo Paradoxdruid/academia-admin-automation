@@ -6,15 +6,18 @@ In Banner 9, download the SWRCGSR output as a text document,  using 'Show Output
 Then, run this script on the downloaded text file.
 """
 
-# Imports
-import csv
-import xlsxwriter
-from itertools import cycle
 import argparse
+import csv
+from itertools import cycle
+from typing import Dict, Generator, List, Tuple
+
+import xlsxwriter
+from _csv import _reader
 
 # Constants
-# This is the both the headers and the associated line pattern of SWRCGSR output in Banner 9
-HEADER_ROW = {
+# This is the both the headers and the associated line pattern of
+# SWRCGSR output in Banner 9
+HEADER_ROW: Dict[str, int] = {
     "Subject": 5,
     "Number": 5,
     "CRN": 6,
@@ -40,7 +43,9 @@ HEADER_ROW = {
 # Functions
 
 
-def alternating_size_chunks(iterable, steps):
+def alternating_size_chunks(
+    iterable: str, steps: Tuple[int, ...]
+) -> Generator[str, str, None]:
     """Break apart a line into chunks of provided sizes
 
     Args:
@@ -51,18 +56,18 @@ def alternating_size_chunks(iterable, steps):
         Return a generator that yields string chunks of the original line.
     """
 
-    n = 0
-    step = cycle(steps)
+    n: int = 0
+    step: cycle[int] = cycle(steps)
     while n < len(iterable):
         try:
-            next_step = next(step)
+            next_step: int = next(step)
         except StopIteration:
             continue
         yield iterable[n : n + next_step]
         n += next_step
 
 
-def main(filename, output_name, dept):
+def main(filename: str, output_name: str, dept: str) -> None:
     """Take in SWRCGSR output and format into usable excel-compatible format.
 
     Args:
@@ -71,33 +76,32 @@ def main(filename, output_name, dept):
         output_name:
             output filename (full path optional) to save as a csv output.
         dept: three letter department code (e.g., CHE)
-
-    Returns:
-        Nothing.
     """
 
     # grab the first letter of the department code, to identify rows containing data
-    dep = dept[0]
+    dep: str = dept[0]
 
-    newfile = []
+    newfile: List[List[str]] = []
 
     # SWRCGSR headers and spacer row
-    newfile.append(HEADER_ROW.keys())
+    newfile.append(list(HEADER_ROW.keys()))
 
     # Open and process text file output
     with open(filename) as csvfile:
-        reader = csv.reader(csvfile)
+        reader: _reader = csv.reader(csvfile)
         # eliminate top rows without data
         for _ in range(7):
             next(reader)
         for row in reader:
             # trim extra spaces or pad to adjust to 140 characters
-            newrow = (
+            newrow: str = (
                 row[0][:140].ljust(140) if len(row[0][:140]) < 140 else row[0][:140]
             )
 
             # break lines with data into a list of pieces
-            newlist = list(alternating_size_chunks(newrow, HEADER_ROW.values()))
+            newlist: List[str] = list(
+                alternating_size_chunks(newrow, tuple(HEADER_ROW.values()))
+            )
 
             # Catch non-data containing lines and skip them
             if newlist[14] == "            ":
@@ -109,10 +113,10 @@ def main(filename, output_name, dept):
                 continue
 
             # convert time format from 12hr to 24hr and account for TBA times
-            timeslot = newlist[14]
+            timeslot: str = newlist[14]
             try:
-                starthour = int(timeslot[0:2])
-                endhour = int(timeslot[5:7])
+                starthour: int = int(timeslot[0:2])
+                endhour: int = int(timeslot[5:7])
                 if timeslot[-3:-1] == "PM":
                     starthour = starthour + 12 if starthour + 12 < 21 else starthour
                     endhour = endhour + 12 if endhour + 12 < 22 else endhour
@@ -141,7 +145,7 @@ def main(filename, output_name, dept):
     write_and_format(newfile, output_name)
 
 
-def write_and_format(input_list, output_name):
+def write_and_format(input_list: List[List[str]], output_name: str) -> None:
     """Take in a list of lists for output data and write an xlsx file.
 
     Args:
@@ -149,22 +153,21 @@ def write_and_format(input_list, output_name):
             input data (a list of lists) of output to write.
         output_name:
             a filename to write out to.
-
-    Returns:
-        Nothing.
     """
 
     # Initialize the xlsx file
-    workbook = xlsxwriter.Workbook(output_name, {"strings_to_numbers": True})
-    worksheet = workbook.add_worksheet()
+    workbook: xlsxwriter.Workbook = xlsxwriter.Workbook(
+        output_name, {"strings_to_numbers": True}
+    )
+    worksheet: xlsxwriter.Worksheet = workbook.add_worksheet()
 
-    bold = workbook.add_format({"bold": True})
+    bold: xlsxwriter.Format = workbook.add_format({"bold": True})
 
     # Process the data
-    rowCount = 0
+    rowCount: int = 0
     for row in input_list:
         if rowCount == 0:
-            colCount = 0
+            colCount: int = 0
             for column in row:
                 worksheet.write(rowCount, colCount, column, bold)
                 colCount += 1
@@ -205,13 +208,21 @@ def write_and_format(input_list, output_name):
 
     # Common cell formatting
     # Light red fill with dark red text
-    format1 = workbook.add_format({"bg_color": "#FFC7CE", "font_color": "#9C0006"})
+    format1: xlsxwriter.Format = workbook.add_format(
+        {"bg_color": "#FFC7CE", "font_color": "#9C0006"}
+    )
     # Light yellow fill with dark yellow text
-    format2 = workbook.add_format({"bg_color": "#FFEB9C", "font_color": "#9C6500"})
+    format2: xlsxwriter.Format = workbook.add_format(
+        {"bg_color": "#FFEB9C", "font_color": "#9C6500"}
+    )
     # Green fill with dark green text.
-    format3 = workbook.add_format({"bg_color": "#C6EFCE", "font_color": "#006100"})
+    format3: xlsxwriter.Format = workbook.add_format(
+        {"bg_color": "#C6EFCE", "font_color": "#006100"}
+    )
     # Darker green fill with black text.
-    format4 = workbook.add_format({"bg_color": "#008000", "font_color": "#000000"})
+    format4: xlsxwriter.Format = workbook.add_format(
+        {"bg_color": "#008000", "font_color": "#000000"}
+    )
 
     # Add enrollment evaluation conditions
 
@@ -258,16 +269,16 @@ def write_and_format(input_list, output_name):
 # if main magic
 if __name__ == "__main__":
     # Set up command line parsing
-    parser = argparse.ArgumentParser(
+    parser: argparse.ArgumentParser = argparse.ArgumentParser(
         description="Process SWRCGSR data from BANNER databases."
     )
     parser.add_argument("input", help="Input file (text saved from SWRCGSR output)")
     parser.add_argument("-d", "--dept", help="Department 3 letter prefix (all CAPS)")
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     # Run the program, defaulting to Chemistry for convenience
     if not args.dept:
-        out = args.input[:-3] + "xlsx"
+        out: str = args.input[:-3] + "xlsx"
         main(args.input, out, "CHE")
     else:
         out = args.input[:-3] + "xlsx"
