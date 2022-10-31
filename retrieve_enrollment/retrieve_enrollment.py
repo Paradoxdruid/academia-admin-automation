@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import WrongPageException
-from private import USER, PASSWORD, CHROMEPATH
-from time import sleep
-from os import path, remove, rename
 import argparse
-import datetime as dt
 import csv
-import xlsxwriter
+import datetime as dt
 from itertools import cycle
+from os import path, remove, rename
+from time import sleep
+from typing import Dict, Generator, Iterable, List, Union
+
+import xlsxwriter
+from private import CHROMEPATH, PASSWORD, USER
+from selenium import webdriver
+from selenium.common.exceptions import WrongPageException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 # This is the both the headers and the assc. line pattern of SWRCGSR output in Banner 9
 HEADER_ROW = {
@@ -38,7 +40,9 @@ HEADER_ROW = {
 }
 
 
-def alternating_size_chunks(iterable, steps):
+def alternating_size_chunks(
+    iterable: str, steps: List[int]
+) -> Generator[str, None, None]:
     """Break apart a line into chunks of provided sizes
 
     Args:
@@ -50,17 +54,17 @@ def alternating_size_chunks(iterable, steps):
     """
 
     n = 0
-    step = cycle(steps)
+    step: Iterable[int] = cycle(steps)
     while n < len(iterable):
         try:
-            next_step = next(step)
+            next_step: int = next(step)  # type: ignore[call-overload]
         except StopIteration:
             continue
         yield iterable[n : n + next_step]
         n += next_step
 
 
-def processEnrollment(filename):
+def processEnrollment(filename: str) -> None:
     """Take in SWRCGSR output and format into usable excel-compatible format.
 
     Args:
@@ -71,10 +75,10 @@ def processEnrollment(filename):
         Nothing.
     """
 
-    newfile = []
+    newfile: List[List[str]] = []
 
     # SWRCGSR headers and spacer row
-    newfile.append(HEADER_ROW.keys())
+    newfile.append(list(HEADER_ROW.keys()))
 
     # Open and process text file output
     with open(filename) as csvfile:
@@ -89,7 +93,7 @@ def processEnrollment(filename):
             )
 
             # break lines with data into a list of pieces
-            newlist = list(alternating_size_chunks(newrow, HEADER_ROW.values()))
+            newlist = list(alternating_size_chunks(newrow, list(HEADER_ROW.values())))
 
             # Catch non-data containing lines and skip them
             if newlist[14] == 12 * " ":
@@ -130,7 +134,7 @@ def processEnrollment(filename):
     write_and_format(newfile, filename[:-3] + "xlsx")
 
 
-def write_and_format(input_list, output_name):
+def write_and_format(input_list: List[List[str]], output_name: str) -> None:
     """Take in a list of lists for output data and write an xlsx file.
 
     Args:
@@ -244,33 +248,33 @@ def write_and_format(input_list, output_name):
     workbook.close()
 
 
-def text_parser(filepath, separator="="):
+def text_parser(filepath: str, separator: str = "=") -> Dict[str, List[str]]:
     return_dict = {}
     with open(filepath, "r") as f:
-        for line in f:
-            line = line.rstrip().split(separator)
+        for _line in f:
+            line: List[str] = _line.rstrip().split(separator)
             items = line[1].split()
             if line[0].strip() == "term":
                 return_dict[line[0].strip()] = line[1].split(",")
             elif len(items) > 1:
                 return_dict[line[0].strip()] = items
             else:
-                return_dict[line[0].strip()] = items[0]
+                return_dict[line[0].strip()] = [items[0]]
     return return_dict
 
 
 def main(
-    term,
-    school,
-    department,
-    status,
-    subject,
-    campus,
-    session,
-    createmergefile,
-    scheduletype,
-    level,
-):
+    term: str,
+    school: Union[List[str], str],
+    department: Union[List[str], str],
+    status: str,
+    subject: Union[List[str], str],
+    campus: Union[List[str], str],
+    session: Union[List[str], str],
+    createmergefile: Union[List[str], str],
+    scheduletype: Union[List[str], str],
+    level: Union[List[str], str],
+) -> None:
 
     # Initialize webdriver
 

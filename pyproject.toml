@@ -1,0 +1,35 @@
+[project]
+name = "academia-admin-automation"
+version = "0.1.0"
+authors = [{name = "Paradoxdruid", email = "bonham@gmail.com"}]
+readme = "README.md"
+description = "Miscellaneous scripts to automate administrative tasks in academia."
+requires-python = ">=3.7"
+license = "GPL-3.0-only"
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "dash",
+    "pandas",
+    "plotly",
+    "xlsxwriter",
+    "selenium"
+]
+urls = {homepage = "https://github.com/Paradoxdruid/academia-admin-automation"}
+
+[tool.mypy]
+ignore_missing_imports = true
+strict = true
+files = [
+    "enrollment_dashboard/*.py",
+    "process_enrollment/*.py",
+    "retrieve_enrollment/*.py"
+]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"

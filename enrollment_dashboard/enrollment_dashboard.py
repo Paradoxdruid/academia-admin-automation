@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 
 # Import required libraries
+import base64
+import datetime
+import io
+from typing import Dict, List, TextIO, Tuple, Union
+
 import dash
 import pandas as pd
-import dash_core_components as dcc
-import dash_html_components as html
 import plotly.express as px
-import plotly.io as pio
-import dash_table
-import base64
-import io
-from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
+import plotly.io as pio
+from dash import dash_table, dcc, html
+from dash.dependencies import Input, Output, State
 from plotly.subplots import make_subplots
-import datetime
 
 # Include pretty graph formatting
 pio.templates.default = "plotly_white"
@@ -137,7 +137,7 @@ app.layout = html.Div(
 
 
 # Helper Functions
-def data_bars(column_data, column_apply):
+def data_bars(column_data, column_apply):  # type: ignore
     n_bins = 100
     bounds = [i * (1.0 / n_bins) for i in range(n_bins + 1)]
     ranges = [100 * i for i in bounds]
@@ -180,7 +180,7 @@ def data_bars(column_data, column_apply):
     return styles
 
 
-def convertAMPMtime(timeslot):
+def convertAMPMtime(timeslot: str) -> str:
     """Convert time format from 12hr to 24hr and account for TBA times.
 
     Args:
@@ -204,7 +204,7 @@ def convertAMPMtime(timeslot):
     return timeslot
 
 
-def tidy_txt(file_contents):
+def tidy_txt(file_contents: TextIO) -> Tuple[pd.DataFrame, str, datetime.datetime]:
     """Take in SWRCGSR output and format into pandas-compatible format.
 
     Args:
@@ -252,9 +252,9 @@ def tidy_txt(file_contents):
     _df = pd.read_fwf(file_contents, colspecs=_LINE_PATTERN)
 
     # read the report Term and Year from file
-    term_code = str(_df.iloc[5][1])[3:] + str(_df.iloc[5][2])[:-2]
+    term_code = str(_df.iloc[1][1])[3:] + str(_df.iloc[1][2])[:-2]
 
-    _df.columns = _df.iloc[7]
+    _df.columns = _df.iloc[2]
     _df = _df[_df["CRN"].notna()]
     _df = _df[_df.CRN.apply(lambda x: x.isnumeric())]
     _df.rename(
@@ -276,7 +276,7 @@ def tidy_txt(file_contents):
     return _df, term_code, data_date
 
 
-def tidy_csv(file_contents):
+def tidy_csv(file_contents: TextIO) -> Tuple[pd.DataFrame, str, datetime.datetime]:
     """Converts the CSV format to the TXT format from Banner
 
     Args:
@@ -303,7 +303,7 @@ def tidy_csv(file_contents):
     return tidy_txt(io.StringIO("\n".join(_list)))
 
 
-def to_excel(df, report_term):
+def to_excel(df: pd.DataFrame, report_term: str) -> str:
     _df = df.copy()
     xlsx_io = io.BytesIO()
     writer = pd.ExcelWriter(
@@ -502,14 +502,16 @@ def to_excel(df, report_term):
     # worksheet2.insert_chart("D25", chart2)
 
     # Save it
-    writer.save()
+    writer.close()
     xlsx_io.seek(0)
     media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     data = base64.b64encode(xlsx_io.read()).decode("utf-8")
     return f"data:{media_type};base64,{data}"
 
 
-def parse_contents(contents, filename, date):
+def parse_contents(
+    contents: str, filename: str, date: str
+) -> Tuple[List[html.Div], pd.DataFrame, str, str, datetime.datetime]:
     """Assess filetype of uploaded file and pass to appropriate processing functions,
     then return html of enrollment statistics.
 
@@ -535,7 +537,7 @@ def parse_contents(contents, filename, date):
             df, term_code, data_date = tidy_csv(io.StringIO(decoded.decode("utf-8")))
     except Exception as e:
         print(e)
-        return html.Div(["There was an error processing this file."])
+        return html.Div(["There was an error processing this file."])  # type: ignore
 
     df["Time"] = df["Time"].apply(convertAMPMtime)
 
@@ -898,7 +900,7 @@ def parse_contents(contents, filename, date):
                                     fixed_rows={"headers": True, "data": 0},
                                     page_size=5000,
                                     style_data_conditional=[
-                                        *data_bars("Ratio", "Max"),
+                                        *data_bars("Ratio", "Max"),  # type: ignore
                                         {
                                             "if": {"row_index": "odd"},
                                             "backgroundColor": "rgb(248, 248, 248)",
@@ -965,8 +967,8 @@ def parse_contents(contents, filename, date):
     [Output("output-data-upload", "children"), Output("main_title", "children")],
     [Input("upload-data", "contents")],
     [State("upload-data", "filename"), State("upload-data", "last_modified")],
-)
-def update_output(contents, name, date):
+)  # type: ignore[misc]
+def update_output(contents: str, name: str, date: str) -> List[List[html.Div]]:
     """When files are selected, call parse-contents and return the new html elements."""
 
     if contents is not None:
@@ -1016,8 +1018,8 @@ def update_output(contents, name, date):
         Output("avg_waitlist_text", "children"),
     ],
     Input("datatable-filtering", "derived_viewport_data"),
-)
-def update_stats(data):
+)  # type: ignore[misc]
+def update_stats(data: Dict[str, str]) -> List[str]:
     if data:
         df = pd.DataFrame(data)
         return [
@@ -1035,8 +1037,8 @@ def update_stats(data):
 @app.callback(
     [Output("filter-query-input", "style"), Output("filter-query-output", "style")],
     [Input("filter-query-read-write", "value")],
-)
-def query_input_output(val):
+)  # type: ignore[misc]
+def query_input_output(val: str) -> Tuple[Dict[str, str], Dict[str, str]]:
     input_style = {"width": "100%", "height": "35px"}
     output_style = {"height": "35px"}
     if val == "read":
@@ -1051,8 +1053,8 @@ def query_input_output(val):
 @app.callback(
     Output("datatable-filtering", "filter_query"),
     [Input("filter-query-input", "value")],
-)
-def write_query(query):
+)  # type: ignore[misc]
+def write_query(query: str) -> str:
     if query is None:
         return ""
     return query
@@ -1061,17 +1063,17 @@ def write_query(query):
 @app.callback(
     Output("filter-query-output", "children"),
     [Input("datatable-filtering", "filter_query")],
-)
-def read_query(query):
+)  # type: ignore[misc]
+def read_query(query: str) -> Union[str, html.P]:
     if query is None:
         return "No filter query"
-    return (html.P('filter_query = "{}"'.format(query)),)
+    return html.P('filter_query = "{}"'.format(query))
 
 
 @app.callback(
     Output("filter-query-input", "value"), Input("filter-query-dropdown", "value")
-)
-def read_query_dropdown(query):
+)  # type: ignore[misc]
+def read_query_dropdown(query: str) -> str:
     if query is not None:
         return query
 
@@ -1080,8 +1082,8 @@ def read_query_dropdown(query):
     Output("max_v_enrl_by_crn_graph", "figure"),
     Input("datatable-filtering", "derived_viewport_data"),
     State("max_v_enrl_by_crn_graph", "figure"),
-)
-def max_v_enrl_by_crn(data, fig):
+)  # type: ignore[misc]
+def max_v_enrl_by_crn(data: Dict[str, str], fig: go.Figure) -> go.Figure:
     if data:
         df = pd.DataFrame(data)
         return (
@@ -1115,8 +1117,8 @@ def max_v_enrl_by_crn(data, fig):
     Output("max_v_enrl_by_course_graph", "figure"),
     Input("datatable-filtering", "derived_viewport_data"),
     State("max_v_enrl_by_course_graph", "figure"),
-)
-def max_v_enrl_by_course(data, fig):
+)  # type: ignore[misc]
+def max_v_enrl_by_course(data: Dict[str, str], fig: go.Figure) -> go.Figure:
     if data:
         df = pd.DataFrame(data)
         _df = (
@@ -1155,8 +1157,8 @@ def max_v_enrl_by_course(data, fig):
         Input("enrollment-max-actual", "value"),
     ],
     State("graph_f2f", "figure"),
-)
-def graph_f2f(data, toggle, fig):
+)  # type: ignore[misc]
+def graph_f2f(data: Dict[str, str], toggle: str, fig: go.Figure) -> go.Figure:
     if data:
         df = pd.DataFrame(data)
         _df = df[["Loc", toggle]]
@@ -1215,8 +1217,8 @@ def graph_f2f(data, toggle, fig):
     Output("enrl_by_instructor_graph", "figure"),
     Input("datatable-filtering", "derived_viewport_data"),
     State("enrl_by_instructor_graph", "figure"),
-)
-def graph_enrollment_by_instructor(data, fig):
+)  # type: ignore[misc]
+def graph_enrollment_by_instructor(data: Dict[str, str], fig: go.Figure) -> go.Figure:
     if data:
         df = pd.DataFrame(data)
         return (
@@ -1245,8 +1247,8 @@ def graph_enrollment_by_instructor(data, fig):
     Output("chp_by_course_graph", "figure"),
     Input("datatable-filtering", "derived_viewport_data"),
     State("chp_by_course_graph", "figure"),
-)
-def chp_by_course(data, fig):
+)  # type: ignore[misc]
+def chp_by_course(data: Dict[str, str], fig: go.Figure) -> go.Figure:
     if data:
         df = pd.DataFrame(data)
         return (
@@ -1267,8 +1269,8 @@ def chp_by_course(data, fig):
 @app.callback(
     Output("enrl_by_instructor", "children"),
     Input("datatable-filtering", "derived_viewport_data"),
-)
-def enrl_by_instructor(data):
+)  # type: ignore[misc]
+def enrl_by_instructor(data: Dict[str, str]) -> List[html.Div]:
     if data:
         df = pd.DataFrame(data)
         _df = (
@@ -1336,8 +1338,8 @@ def enrl_by_instructor(data):
 @app.callback(  # noqa
     Output("chp_by_course", "children"),
     Input("datatable-filtering", "derived_viewport_data"),
-)
-def chp_by_course2(data):
+)  # type: ignore[misc]
+def chp_by_course2(data: Dict[str, str]) -> List[html.Div]:
     if data:
         df = pd.DataFrame(data)
         _df = (
