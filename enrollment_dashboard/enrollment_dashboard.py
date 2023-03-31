@@ -1190,24 +1190,24 @@ def graph_f2f(data: Dict[str, str], toggle: str, fig: go.Figure) -> go.Figure:
             title_text=toggle + " Ratios",
             showlegend=False,
             annotations=[
-                dict(
-                    text="Async<br />vs<br />Sync",
-                    x=0.5,
-                    y=0.785,
-                    font_size=10,
-                    showarrow=False,
-                    xanchor="center",
-                    yanchor="middle",
-                ),
-                dict(
-                    text="F2F<br />vs<br />Online",
-                    x=0.5,
-                    y=0.215,
-                    font_size=10,
-                    showarrow=False,
-                    xanchor="center",
-                    yanchor="middle",
-                ),
+                {
+                    "text": "Async<br />vs<br />Sync",
+                    "x": 0.5,
+                    "y": 0.785,
+                    "font_size": 10,
+                    "showarrow": False,
+                    "xanchor": "center",
+                    "yanchor": "middle",
+                },
+                {
+                    "text": "F2F<br />vs<br />Online",
+                    "x": 0.5,
+                    "y": 0.215,
+                    "font_size": 10,
+                    "showarrow": False,
+                    "xanchor": "center",
+                    "yanchor": "middle",
+                },
             ],
         )
     return fig
